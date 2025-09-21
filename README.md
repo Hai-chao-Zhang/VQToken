@@ -42,16 +42,16 @@
 
 ## 👥 Authors
 <p align="center">
-  <a href="https://zhanghaichao.xyz"><b>Haichao Zhang<sup>1</sup></b></a> ·
-  <a href="https://www1.ece.neu.edu/~yunfu/"><b>Yun Fu<sup>1</sup></b></a>
+  <a href="https://zhanghaichao.xyz"><b>Haichao Zhang</b></a> ·
+  <a href="https://www1.ece.neu.edu/~yunfu/"><b>Yun Fu</b></a>
 </p>
 <p align="center">
   <sub> SMILE Lab, Northeastern University</sub>
 </p>
 <p align="center">
-  <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="56" style="vertical-align:bottom;" alt="SMILE Lab"/>
+  <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="64" style="vertical-align:bottom;" alt="SMILE Lab"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="56" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
+  <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="64" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
   &nbsp;&nbsp;&nbsp;
 </p>
 
