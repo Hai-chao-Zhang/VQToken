@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="teaser.png" width="88%" alt="VQToken Teaser">
+  <img src="assets/VQToken_teasor.jpeg" width="100%" alt="VQToken Teaser">
 </p>
 
 ---
