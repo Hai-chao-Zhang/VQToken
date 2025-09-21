@@ -2,6 +2,12 @@
 
 <p align="center"><b>Accepted by NeurIPS 2025</b></p>
 
+<p align="center">
+  <span style="display:inline-block;background:#ffffff;padding:6px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+    <img src="https://lh7-rt.googleusercontent.com/docsz/AD_4nXcR4XEKvP6X6bSxwq_SFTbv94j0MrNUaqTldv_oEqa7xc7s1H4ec4i6HLigOEnDu5vgNo8TI41pr-GggaT8X_jCovUhLiIvxaxxznZaE5ala8UwZs1jXYrdRaMhA3NaSCm96MTmKA?key=8A-mbKFHDRn1gOqo69e4qnFr" height="44" alt="NeurIPS 2025 Logo"/>
+  </span>
+</p>
+
 
 <p align="center">
   <a href="https://arxiv.org/pdf/2503.16980">
