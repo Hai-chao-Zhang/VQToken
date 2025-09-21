@@ -62,8 +62,8 @@
 
 | Date | Status | Description |
 |------|--------|-------------|
-| **2025/09/21** | ✅ | Release **VQ-Token 0.5B** pretrained model on Hugging Face |
-| **2025/09** | ✅ | Release **testing & training code** (this repo) |
+| **2025/09/20** | ✅ | Release **VQ-Token 0.5B** pretrained model on Hugging Face |
+| **2025/09/22** | ✅ | Release **testing & training code** (this repo) |
 | *TBD* | ⭕ | Project **website** enhancements go online |
 | *TBD* | ⭕ | Update **Hugging Face model card README** |
 | *Future Ideas* | 💡 | Suggestions/collab: `zhang dot haich at northeastern dot edu` |
