@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>VQToken — Extreme Token Reduction for Video LLMs (NeurIPS 2025)</title>
+  <meta name="description" content="VQToken: Neural Discrete Token Representation Learning for Extreme Token Reduction in Video LLMs. Accepted at NeurIPS 2025." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="VQToken — Extreme Token Reduction for Video LLMs (NeurIPS 2025)" />
+  <meta property="og:description" content="Run Video-LLMs with ~0.07% tokens using learned discrete neural tokens. Fixed & adaptive budgets. LLaVA-OneVision + lmms-eval." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.zhanghaichao.xyz/VQToken/" />
+  <meta property="og:image" content="assets/VQToken_teasor.jpeg" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="VQToken — Extreme Token Reduction for Video LLMs (NeurIPS 2025)" />
+  <meta name="twitter:description" content="Run Video-LLMs with ~0.07% tokens using learned discrete neural tokens. Fixed & adaptive budgets. LLaVA-OneVision + lmms-eval." />
+  <meta name="twitter:image" content="assets/VQToken_teasor.jpeg" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Sora:wght@600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg: #0b0d10;
+      --panel:#0f1318;
+      --card:#12161c;
+      --soft:#171c24;
+      --muted:#93a1b6;
+      --text:#e8edf5;
+      --accent:#61d0ff;
+      --accent2:#9b7bff;
+      --ok:#7ee787;
+      --todo:#ffd166;
+      --link:#7cc8ff;
+      --border:rgba(255,255,255,.08);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    @media (prefers-color-scheme: light) {
+      :root{
+        --bg:#f7f9fc; --panel:#ffffff; --card:#ffffff; --soft:#f2f5fb;
+        --text:#0c1524; --muted:#5a6a83; --border:rgba(12,21,36,.08);
+        --link:#0b74ff;
+        --shadow: 0 8px 24px rgba(0,0,0,.08);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+    a{color:var(--link);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .container{max-width:1180px;margin:0 auto;padding:24px}
+    header.hero{
+      border-radius:24px;
+      padding:42px 24px 28px;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(97,208,255,.18), transparent 60%),
+        radial-gradient(1200px 600px at 100% 0%, rgba(155,123,255,.16), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      box-shadow: var(--shadow);
+      position:relative; overflow:hidden;
+    }
+    .brand-row{display:flex;align-items:center;gap:14px; margin-bottom:10px; justify-content:center}
+    .brand-row img.neurips {height:34px; border-radius:6px; border:1px solid var(--border); background:#fff;}
+    .title{font-family:Sora,Inter,sans-serif;font-size:2.4rem;font-weight:800;margin:0 0 6px;letter-spacing:.2px;text-align:center}
+    .subtitle{margin:12px auto 8px;color:var(--muted);font-weight:500;max-width:900px;text-align:center}
+    .btn-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:12px}
+    .btn{
+      display:inline-flex;align-items:center;gap:10px;
+      padding:12px 16px;border-radius:12px;border:1px solid var(--border);
+      background:rgba(255,255,255,.02);color:var(--text);font-weight:600;
+      transition:.2s ease; backdrop-filter: blur(8px);
+    }
+    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.06)}
+    .btn img.icon{width:18px;height:18px;display:inline-block;vertical-align:middle;opacity:.95}
+    .teaser{margin:18px auto 0;border-radius:16px;overflow:hidden;border:1px solid var(--border);max-height:640px}
+    .teaser img{display:block;width:100%;height:auto}
+    section{margin-top:40px}
+    .grid{display:grid;gap:16px}
+    @media(min-width:880px){.grid.cols-2{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+    h2{font-size:1.35rem;margin:0 0 12px}
+    h3{font-size:1.05rem;margin:14px 0 8px}
+    ul{margin:10px 0 0 20px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    pre{background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:auto}
+    code{font-family:inherit}
+    .authors{ text-align:center }
+    .logos{display:inline-flex; align-items:flex-end; gap:18px; margin-top:8px}
+    .logos img{display:block}
+    table{width:100%;border-collapse:collapse;font-size:.95rem}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--border)}
+    th{color:#b8c2d8;text-align:left}
+    @media (prefers-color-scheme: light){ th{color:#556072} }
+    .status{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font-size:.82rem;border:1px solid var(--border)}
+    .ok{color:var(--ok);background:rgba(126,231,135,.08)}
+    .todo{color:var(--todo);background:rgba(255,209,102,.12)}
+    .feature{display:flex;gap:12px;align-items:flex-start}
+    .feature .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(45deg,var(--accent),var(--accent2));margin-top:7px}
+    .cta{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    .cta .btn{background:linear-gradient(45deg, rgba(97,208,255,.2), rgba(155,123,255,.2));}
+    footer{margin:48px 0 16px;text-align:center;color:var(--muted);font-size:.9rem}
+    .small{color:var(--muted);font-size:.95rem}
+    .rel{position:relative}
+    .copy-btn{
+      position:absolute; right:12px; top:12px;
+      border:1px solid var(--border); background:rgba(255,255,255,.02);
+      border-radius:10px; padding:6px 10px; cursor:pointer; color:var(--text);
+      display:inline-flex; gap:8px; align-items:center;
+    }
+    .copy-btn:hover{background:rgba(255,255,255,.08)}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid var(--border);}
+  </style>
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "VQToken",
+    "url": "https://www.zhanghaichao.xyz/VQToken/",
+    "codeRepository": "https://github.com/Hai-chao-Zhang/VQToken",
+    "programmingLanguage": "Python",
+    "license": "https://github.com/Hai-chao-Zhang/VQToken/blob/main/LICENSE",
+    "applicationCategory": "ComputerVision, GenerativeAI, Multimodal",
+    "creator": [{
+      "@type": "Person",
+      "name": "Haichao Zhang",
+      "url": "https://zhanghaichao.xyz"
+    },{
+      "@type": "Person",
+      "name": "Yun Fu",
+      "url": "https://www1.ece.neu.edu/~yunfu/"
+    }],
+    "citation": "arXiv:2503.16980",
+    "isPartOf": {"@type":"Event","name":"NeurIPS 2025"}
+  }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <div class="brand-row">
+        <img class="neurips" src="https://lh7-rt.googleusercontent.com/docsz/AD_4nXcR4XEKvP6X6bSxwq_SFTbv94j0MrNUaqTldv_oEqa7xc7s1H4ec4i6HLigOEnDu5vgNo8TI41pr-GggaT8X_jCovUhLiIvxaxxznZaE5ala8UwZs1jXYrdRaMhA3NaSCm96MTmKA?key=8A-mbKFHDRn1gOqo69e4qnFr" alt="NeurIPS 2025 Logo" />
+        <span class="pill">Accepted by NeurIPS 2025</span>
+      </div>
+      <h1 class="title">VQToken: Neural Discrete Token Representation Learning for Extreme Token Reduction in Video LLMs</h1>
+      <p class="subtitle">Run Video-LLMs with <b>as little as 0.07%</b> of tokens using learned <b>discrete neural tokens</b>. Fixed &amp; adaptive budgets. Seamless with <b>LLaVA-OneVision</b> via <span class="mono">lmms-eval</span>.</p>
+
+      <div class="btn-row">
+        <a class="btn" href="https://arxiv.org/pdf/2503.16980" target="_blank" rel="noopener">
+          <img class="icon" src="https://cdn.simpleicons.org/arxiv/ffffff" alt="arXiv">
+          <span>arXiv 2503.16980</span>
+        </a>
+        <a class="btn" href="https://www.zhanghaichao.xyz/VQToken/" target="_blank" rel="noopener">
+          <img class="icon" src="https://cdn.simpleicons.org/googlechrome/ffffff" alt="Website">
+          <span>Project Website</span>
+        </a>
+        <a class="btn" href="https://huggingface.co/haichaozhang/VQ-Token-llava-ov-0.5b" target="_blank" rel="noopener">
+          <img class="icon" src="https://cdn.simpleicons.org/huggingface/ffffff" alt="Hugging Face">
+          <span>HuggingFace Model</span>
+        </a>
+        <a class="btn" href="https://github.com/Hai-chao-Zhang/VQToken" target="_blank" rel="noopener">
+          <img class="icon" src="https://cdn.simpleicons.org/github/ffffff" alt="GitHub">
+          <span>GitHub Repo</span>
+        </a>
+      </div>
+
+      <div class="teaser">
+        <img src="assets/VQToken_teasor.jpeg" alt="VQToken Teaser">
+      </div>
+    </header>
+
+    <section class="grid cols-2">
+      <div class="card">
+        <h2>What is VQToken?</h2>
+        <div class="feature"><span class="dot"></span><div>Learned <b>discrete neural tokens</b> compress video to ~<b>0.07%</b> of original tokens.</div></div>
+        <div class="feature"><span class="dot"></span><div><b>Fixed</b> and <b>adaptive</b> budgets to match latency & accuracy targets.</div></div>
+        <div class="feature"><span class="dot"></span><div>Plug into <b>LLaVA-OneVision (0.5B)</b> via <span class="mono">lmms-eval</span>, keeping your eval pipeline unchanged.</div></div>
+        <div class="cta">
+          <a class="btn" href="https://arxiv.org/pdf/2503.16980" target="_blank" rel="noopener">Read the Paper</a>
+          <a class="btn" href="https://huggingface.co/haichaozhang/VQ-Token-llava-ov-0.5b" target="_blank" rel="noopener">Get the Weights</a>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Authors</h2>
+        <div class="authors">
+          <p><a href="https://zhanghaichao.xyz"><b>Haichao Zhang<sup>1</sup></b></a> ·
+             <a href="https://www1.ece.neu.edu/~yunfu/"><b>Yun Fu<sup>1</sup></b></a></p>
+          <p class="small"><b>1</b> SMILE Lab, Northeastern University</p>
+          <div class="logos">
+            <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="56" alt="SMILE Lab">
+            <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="56" alt="NEU Seal">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Extreme Token Reduction Task</h2>
+      <p><b>Goal.</b> Compress a long video-derived token sequence <span class="mono">t</span> into a minimal set of tokens <span class="mono">t'</span> without sacrificing downstream performance.</p>
+      <p><b>Setting.</b> Given a video <span class="mono">v</span> and query <span class="mono">q</span>, a video-language model (vLLM) tokenizes the video:
+      <span class="mono">t = Tokenize(v)</span>, then uses <span class="mono">t</span> and <span class="mono">q</span> to predict an answer <span class="mono">a</span>.</p>
+      <p><b>Reduction function.</b> A function <span class="mono">R</span> maps <span class="mono">t → t'</span> with <span class="mono">|t'| ≪ |t|</span> such that the vLLM’s accuracy on <span class="mono">a</span> remains comparable.</p>
+      <h3>Subtasks</h3>
+      <ul>
+        <li><b>Fixed-Length Reduction.</b> Evaluate under a predefined token budget <span class="mono">m</span> or reduction ratio <span class="mono">ρ</span> for apples-to-apples comparison.</li>
+        <li><b>Adaptive-Length Reduction.</b> Dynamically choose <span class="mono">|t'|</span> per instance based on content complexity to trade tokens for accuracy.</li>
+      </ul>
+      <h3>Complexity Metrics</h3>
+      <ul>
+        <li><b>R-Cost.</b> Computational overhead of the reduction module <span class="mono">R</span>.</li>
+        <li><b>LLM-Cost.</b> Resulting impact on downstream LLM inference (after reduction).</li>
+      </ul>
+      <p class="small">We also introduce the <b>Token Information Density</b> (<i>TokDense</i>) metric to quantify information retained per token and provide a formal definition covering both fixed-length and adaptive-length regimes.</p>
+    </section>
+
+    <section class="card rel">
+      <h2 style="margin-right:120px;">Citation</h2>
+      <button class="copy-btn" onclick="copyBib()">
+        <!-- copy icon -->
+        <svg viewBox='0 0 24 24' width='16' height='16' fill='currentColor' aria-hidden="true"><path d='M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/></svg>
+        Copy
+      </button>
+<pre id="bib"><code>@inproceedings{zhang2025vqtoken,
+  title     = {VQToken: Neural Discrete Token Representation Learning for Extreme Token Reduction in Video Large Language Models},
+  author    = {Haichao Zhang and Yun Fu},
+  booktitle = {NeurIPS},
+  year      = {2025}
+}</code></pre>
+    </section>
+
+    <section class="card">
+      <h2>Timeline</h2>
+      <table>
+        <thead>
+          <tr><th style="width:140px;">Date</th><th style="width:120px;">Status</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>2025/09/21</b></td><td><span class="status ok">✅ Released</span></td><td>VQ-Token 0.5B pretrained model on Hugging Face</td></tr>
+          <tr><td><b>2025/09</b></td><td><span class="status ok">✅ Released</span></td><td>Testing &amp; training code (this repo)</td></tr>
+          <tr><td><i>TBD</i></td><td><span class="status todo">⭕ Planned</span></td><td>Project website enhancements go online</td></tr>
+          <tr><td><i>TBD</i></td><td><span class="status todo">⭕ Planned</span></td><td>Update Hugging Face model card README</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="grid cols-2">
+      <div class="card">
+        <h2>Install</h2>
+<pre><code># clone your repo
+git clone https://github.com/Hai-chao-Zhang/VQToken.git
+cd VQToken
+
+# conda env
+conda create -n vqtoken python=3.10 -y
+conda activate vqtoken
+
+# install lmms-eval (dev mode)
+git clone https://github.com/EvolvingLMMs-Lab/lmms-eval
+cd lmms-eval
+pip install -e .
+cd ..
+
+# install VQToken (train extras)
+pip install -e ".[train]"</code></pre>
+      </div>
+      <div class="card">
+        <h2>Quickstart (Eval)</h2>
+<pre><code>export HF_HOME="/path/to/your/hf/cache"
+export HF_TOKEN="your_hf_token_here"
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export NCCL_P2P_DISABLE="1"
+export NCCL_IB_DISABLE="1"
+
+PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b
+
+CUDA_VISIBLE_DEVICES=2 accelerate launch --num_processes=1 --main_process_port 29509 \
+  -m lmms_eval \
+  --model llava_onevision_vqtoken \
+  --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen \
+  --tasks activitynetqa --batch_size 1 \
+  --log_samples --log_samples_suffix llava_onevision \
+  --output_path ./logs_new/</code></pre>
+      </div>
+    </section>
+
+    <section class="grid cols-2">
+      <div class="card">
+        <h2>Minimal Prediction</h2>
+<pre><code>from decord import VideoReader, cpu
+from llava.model.builder import load_pretrained_model
+from llava.mm_utils import tokenizer_image_token
+from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
+from llava.conversation import conv_templates
+import numpy as np, torch, copy
+
+tok, model, imgproc, _ = load_pretrained_model(
+    "haichaozhang/VQ-Token-llava-ov-0.5b", None, "llava_qwen",
+    device_map="auto", attn_implementation="sdpa", multimodal=True
+)
+model.eval()
+
+def frames(path, n=16):
+    vr = VideoReader(path, ctx=cpu(0))
+    idx = np.linspace(0, len(vr)-1, n, dtype=int).tolist()
+    return vr.get_batch(idx).asnumpy()
+
+vid = frames("sample/demo.mp4", 16)
+pix = imgproc.preprocess(vid, return_tensors="pt")["pixel_values"].half().cuda()
+images = [pix]
+
+conv = copy.deepcopy(conv_templates["qwen_1_5"])
+q = f"{DEFAULT_IMAGE_TOKEN}\nDescribe what's happening in this video."
+conv.append_message(conv.roles[0], q); conv.append_message(conv.roles[1], None)
+prompt = conv.get_prompt()
+ids = tokenizer_image_token(prompt, tok, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).cuda()
+sizes = [f.shape[:2] for f in vid]
+
+out = model.generate(ids, images=images, image_sizes=sizes,
+                     do_sample=False, temperature=0, max_new_tokens=512,
+                     modalities=["video"], vis=True)
+print(tok.batch_decode(out, skip_special_tokens=True)[0])</code></pre>
+      </div>
+      <div class="card">
+        <h2>File Tree</h2>
+<pre><code>VQToken
+├─ VLMEvalKit/              # VLMEvalKit evaluation
+├─ VQToken/                 # VQToken core code
+├─ llava/                   # modified from LLaVA-OneVision
+├─ lmms_eval/               # lmms-eval Evaluation (preferred)
+├─ finetune_ov_all.sh       # train bash
+└─ test_vqtoken_0.5b.sh     # test bash</code></pre>
+      </div>
+    </section>
+
+    <footer>
+      <p>© 2025 VQToken — SMILE Lab @ Northeastern University • <a href="mailto:zhang.haich@northeastern.edu">Contact</a></p>
+    </footer>
+  </div>
+
+  <script>
+    function copyBib(){
+      const pre = document.getElementById('bib');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(()=>{
+        const btn = document.querySelector('.copy-btn');
+        const old = btn.innerHTML;
+        btn.innerHTML = "Copied!";
+        setTimeout(()=>{ btn.innerHTML = old; }, 1500);
+      });
+    }
+  </script>
+</body>
+</html>
