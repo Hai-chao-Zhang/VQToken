@@ -26,9 +26,9 @@
 
 ## 🔎 What is VQToken?
 
-**VQToken** learns **discrete neural tokens** for video (VQ-style) that enable Video-LLMs to run with **as little as 0.07%** of the original tokens while retaining strong performance. It supports **fixed-length** and **adaptive-length** token budgets and plugs directly into **LLaVA-OneVision** via **lmms-eval**.
+**VQToken** learns **discrete neural tokens** for video that enable Video-LLMs to run with **as little as 0.07%** of the original tokens while retaining strong performance. It supports **fixed-length** and **adaptive-length** token budgets and plugs directly into **LLaVA-OneVision** via **lmms-eval**.
 
-- **Extreme Token Reduction**: ~**0.07%** of dense tokens  
+- **Extreme Token Reduction**: ~**0.07%** of discrete tokens  
 - **VQ-style discrete tokens** with motion/dynamics awareness  
 - **Fixed / Adaptive** token-length regimes  
 - **Plug-and-play** with **LLaVA-OneVision (0.5B)** through **lmms-eval**
