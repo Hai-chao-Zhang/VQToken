@@ -1,0 +1,183 @@
+datasets:
+  # - json_path: /your_dataset_dir/llava_ov/ai2d_gpt4v.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/ai2d_internvl.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/allava_instruct_laion4v.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/chrome_writting.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/CLEVR-Math_MathV360K.json
+  #   sampling_strategy: "10%"
+  # - json_path: /your_dataset_dir/llava_ov/FigureQA_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/geo170k_align.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/geo170k_qa.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/geo3k.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/Geometry3K_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/GeoQA+_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/GEOS_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/hme100k.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/IconQA_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/iiit5k.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/image_textualization_filtered.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/infographic_gpt4v.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/infographic_vqa.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/k12_printing.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/llavar_gpt4_20k.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/lrv_chart.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/lrv_normal_filtered.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/magpie_pro_l3_80b_mt.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/magpie_pro_l3_80b_st.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/magpie_pro_qwen2_72b_st.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/MapQA_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/mathqa.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/mavis_math_metagen.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/mavis_math_rule_geo.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/orand_car_a.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/PMC-VQA_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/scienceqa_nona_context.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sharegpt4o.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sharegpt4v_coco.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sharegpt4v_knowledge.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sharegpt4v_llava.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sharegpt4v_sam.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/sroie.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/Super-CLEVR_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/TabMWP_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/textcaps.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/textocr_gpt4v.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/UniGeo_MathV360K.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/ureader_cap.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/ureader_ie.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/VisualWebInstruct_filtered.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/llava_ov/VizWiz_MathV360K.json
+  #   sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_academic_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_academic_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_academic_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_activitynetqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_nextqa_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_nextqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_perceptiontest_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_youtube_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_youtube_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/0_30_s_youtube_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_academic_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_academic_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_academic_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_activitynetqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_nextqa_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_nextqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_youtube_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_youtube_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/1_2_m_youtube_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_academic_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_academic_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_academic_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_activitynetqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_nextqa_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_nextqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_youtube_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_youtube_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/2_3_m_youtube_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_academic_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_academic_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_academic_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_activitynetqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_nextqa_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_nextqa_oe_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_perceptiontest_mc_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_youtube_mc_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_youtube_oe_v0_1_qa_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/30_60_s_youtube_v0_1_cap_processed.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/demonstration_pool.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/demonstration_pool_mc.json
+    sampling_strategy: "all"
+  - json_path: /your_dataset_dir/LLaVA-Video-178K/json/meta.json
+    sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/LLaVA-Video-178K/json/sharegptvideo_qa_255k_processed.json
+    # sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/LLaVA-Video-178K/json/video_captions_examples.json
+  #   sampling_strategy: "all"
+  # - json_path: /your_dataset_dir/LLaVA-Video-178K/json/video_captions_examples_large_for_test.json
+  #   sampling_strategy: "all"
