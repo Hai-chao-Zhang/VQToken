@@ -52,7 +52,7 @@
   <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="56" style="vertical-align:bottom;" alt="SMILE Lab"/>
   &nbsp;&nbsp;&nbsp;
   <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="56" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
-  &nbsp;&nbsp;&nbsp
+  &nbsp;&nbsp;&nbsp;
 </p>
 
 
@@ -127,14 +127,7 @@ Run ActivityNet-QA with the 0.5B OneVision checkpoint:
 ```bash
 PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b
 
-CUDA_VISIBLE_DEVICES=2 accelerate launch --num_processes=1 --main_process_port 29509 \
-  -m lmms_eval \
-  --model llava_onevision_vqtoken \
-  --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen \
-  --tasks activitynetqa --batch_size 1 \
-  --log_samples \
-  --log_samples_suffix llava_onevision \
-  --output_path ./logs_new/
+CUDA_VISIBLE_DEVICES=2 accelerate launch --num_processes=1 --main_process_port 29509   -m lmms_eval   --model llava_onevision_vqtoken   --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen   --tasks activitynetqa --batch_size 1   --log_samples   --log_samples_suffix llava_onevision   --output_path ./logs_new/
 ```
 
 Or simply:
