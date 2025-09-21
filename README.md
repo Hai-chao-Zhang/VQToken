@@ -46,14 +46,13 @@
   <a href="https://www1.ece.neu.edu/~yunfu/"><b>Yun Fu<sup>1</sup></b></a>
 </p>
 <p align="center">
-  <sub><b>1</b> SMILE Lab, Northeastern University</sub>
+  <sub> SMILE Lab, Northeastern University</sub>
 </p>
 <p align="center">
   <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="56" style="vertical-align:bottom;" alt="SMILE Lab"/>
   &nbsp;&nbsp;&nbsp;
   <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="56" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Northeastern_University_wordmark.svg" height="30" style="vertical-align:bottom;" alt="Northeastern University Wordmark"/>
+  &nbsp;&nbsp;&nbsp
 </p>
 
 
