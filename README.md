@@ -204,10 +204,10 @@ print(tokenizer.batch_decode(out, skip_special_tokens=True)[0])
 ## 📚 Citation
 ```bibtex
 @inproceedings{zhang2025vqtoken,
-  title     = {VQToken: Neural Discrete Token Representation Learning for Extreme Token Reduction in Video Large Language Models},
-  author    = {Haichao Zhang and Yun Fu},
-  booktitle = {NeurIPS},
-  year      = {2025}
+  title={VQToken: Neural Discrete Token Representation Learning for Extreme Token Reduction in Video Large Language Models},
+  author={Zhang, Haichao and Fu, Yun},
+  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
+  year={2025}
 }
 ```
 
