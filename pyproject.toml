@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llava"
-version = "1.7.0.dev0"
+version = "1.7.0.dev1"
 description = "VQToken on LLaVA-OneVision"
 readme = "README.md"
 requires-python = ">=3.10,<3.12"
@@ -16,6 +16,7 @@ license-files = [
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "LICENSES/Apache-2.0.txt",
+    "LICENSES/OpenAI-CLIP-MIT.txt",
     "LICENSES/lmms-eval-v0.2.4-LICENSE.txt",
 ]
 classifiers = [
@@ -23,15 +24,17 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-standalone = [
+runtime = [
+    "matplotlib",
+    "requests",
+    "scipy",
+]
+
+eval = [
     "shortuuid",
     "httpx==0.23.3",
     "einops",
     "ftfy",
-]
-
-eval = [
-    "llava[standalone]",
     "accelerate==0.29.3",
     "av",
     "datasets==2.16.1",
@@ -83,35 +86,23 @@ eval = [
     "zstandard",
 ]
 
-train = [
-    "llava[eval]",
-    "bitsandbytes==0.41.0",
-    "deepspeed==0.14.4",
-    "fastapi",
-    "gradio_client==0.2.9",
-    "markdown2[all]",
-    "urllib3<=2.0.0",
-    "tyro",
-    "uvicorn",
-]
-
 test = [
     "pytest>=8,<9",
     "torch==2.1.2",
 ]
-
-[project.scripts]
-lmms-eval = "lmms_eval.__main__:cli_evaluate"
 
 [project.urls]
 "Homepage" = "https://www.zhanghaichao.xyz/VQToken/"
 "Repository" = "https://github.com/Hai-chao-Zhang/VQToken"
 
 [tool.setuptools.packages.find]
-include = ["llava*", "trl*", "VQToken*", "lmms_eval*"]
+include = ["llava*", "VQToken*"]
 exclude = [
-    "lmms_eval.lmms_eval*",
-    "lmms_eval.llava*",
+    "llava.eval*",
+    "llava.serve*",
+    "llava.train*",
+    "llava.model.multimodal_encoder.eva_clip*",
+    "llava.model.multimodal_encoder.dev_eva_clip*",
     "assets*",
     "benchmark*",
     "docs",
@@ -125,15 +116,6 @@ exclude = [
     "mlx_configs*",
     "wandb*",
     "notebooks*",
-]
-
-[tool.setuptools.package-data]
-lmms_eval = [
-    "tasks/**/*.yaml",
-    "tasks/**/*_yaml*",
-    "tasks/**/*.json",
-    "tasks/**/*.csv",
-    "tasks/**/*.ttf",
 ]
 
 [tool.wheel]

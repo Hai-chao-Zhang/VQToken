@@ -94,8 +94,10 @@ VQToken
 ## 🛠️ Installation
 
 The supported environment is Linux with Python 3.10 and a CUDA-capable GPU. The
-repository vendors its VQToken-aware `lmms_eval`; do not clone a second copy of
-`lmms-eval` into this checkout.
+source checkout vendors its VQToken-aware `lmms_eval` for the paper evaluation.
+The built distribution intentionally contains only the `llava` and `VQToken`
+runtime packages, so it can also be installed next to a current upstream
+evaluation harness without overwriting that harness.
 
 ```bash
 git clone https://github.com/Hai-chao-Zhang/VQToken.git
@@ -110,9 +112,23 @@ python -m pip install -e ".[eval,test]"
 python -m pip check
 pytest -q tests
 
-# Add training dependencies only when needed
-python -m pip install -e ".[train]"
+# Training remains source-only. Install its optional dependencies explicitly
+# in this checkout if you intend to reproduce training.
 ```
+
+For an already configured upstream `lmms-eval` or VLMEvalKit environment,
+install only the public runtime. The host environment must provide its normal
+PyTorch, Transformers, Pillow, NumPy, SciPy, Matplotlib, and OpenCV stack:
+
+```bash
+python -m pip install "llava[runtime] @ git+https://github.com/Hai-chao-Zhang/VQToken.git"
+```
+
+The runtime advertises its supported public integration surface through
+`VQToken.VQTOKEN_CAPABILITIES`: centroid codebooks with `fixed`, `elbow`, or
+`silhouette` cluster-count selection. The vendored evaluator and training code
+remain available when running from the repository root, but are not installed
+into another project's environment or included in the source distribution.
 
 ---
 

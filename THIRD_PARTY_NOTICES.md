@@ -1,7 +1,9 @@
 # Third-party notices
 
-This distribution contains modified, vendored source code. Copyright notices
-and license terms retained in individual source files remain in effect.
+This source repository contains modified, vendored source code. The runtime
+wheel and source distribution contain only the `llava/` and `VQToken/`
+packages. Copyright notices and license terms retained in individual source
+files remain in effect.
 
 ## LLaVA-NeXT / LLaVA-OneVision
 
@@ -21,8 +23,8 @@ Transformers, OpenAI CLIP, and other upstream implementations.
 - License text: [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt)
 - Vendored version: `0.7.11.dev0`
 
-The vendored `trl/` package retains its upstream copyright and attribution
-headers.
+The source checkout's vendored `trl/` package retains its upstream copyright
+and attribution headers. It is not included in the runtime distribution.
 
 ## lmms-eval
 
@@ -32,8 +34,17 @@ headers.
 - License text: [`LICENSES/lmms-eval-v0.2.4-LICENSE.txt`](LICENSES/lmms-eval-v0.2.4-LICENSE.txt)
 - Vendored version: `0.2.4`
 
-The vendored `lmms_eval/` package is derived from lmms-eval, which in turn
-retains relevant attribution to lm-evaluation-harness.
+The source checkout's vendored `lmms_eval/` package is derived from lmms-eval,
+which in turn retains relevant attribution to lm-evaluation-harness. It is not
+included in the runtime distribution.
+
+## OpenAI CLIP
+
+- Source: <https://github.com/openai/CLIP>
+- License: MIT
+- License text: [`LICENSES/OpenAI-CLIP-MIT.txt`](LICENSES/OpenAI-CLIP-MIT.txt)
+
+The LLaVA vision-encoder sources include code derived from OpenAI CLIP.
 
 ## VQToken-specific code
 
