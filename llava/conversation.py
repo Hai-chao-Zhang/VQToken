@@ -44,6 +44,19 @@ class Conversation:
 
     skip_next: bool = False
 
+    def _require_tokenizer(self):
+        if self.tokenizer is None and self.tokenizer_id:
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_id)
+            except Exception as exc:
+                raise ValueError(
+                    f"Tokenizer {self.tokenizer_id!r} is unavailable. "
+                    "Make sure the model is accessible or already cached."
+                ) from exc
+        if self.tokenizer is None:
+            raise ValueError("This conversation template requires a tokenizer.")
+        return self.tokenizer
+
     def get_prompt(self):
         messages = self.messages
         if len(messages) > 0 and type(messages[0][1]) is tuple:
@@ -95,8 +108,7 @@ class Conversation:
             return ret
 
         elif self.sep_style == SeparatorStyle.LLAMA_3:
-            if self.tokenizer is None:
-                raise ValueError("Llama 3 tokenizer is not available. Make sure you have the necessary permissions.")
+            tokenizer = self._require_tokenizer()
             chat_template_messages = [{"role": "system", "content": self.system}]
             for role, message in messages:
                 if message:
@@ -106,7 +118,7 @@ class Conversation:
                     chat_template_messages.append({"role": role, "content": message})
 
             # print(chat_template_messages)
-            return self.tokenizer.apply_chat_template(chat_template_messages, tokenize=False, add_generation_prompt=True)
+            return tokenizer.apply_chat_template(chat_template_messages, tokenize=False, add_generation_prompt=True)
             # ret = "" if self.system == "" else self.system + self.sep + "\n"
             # for role, message in messages:
             #     if message:
@@ -377,12 +389,6 @@ conv_llava_llama_2 = Conversation(
     sep2="</s>",
 )
 
-def safe_load_tokenizer(tokenizer_id):
-    try:
-        return AutoTokenizer.from_pretrained(tokenizer_id)
-    except Exception:
-        return None
-
 conv_llava_llama_3 = Conversation(
     system="You are a helpful language and vision assistant. " "You are able to understand the visual content that the user provides, " "and assist the user with a variety of tasks using natural language.",
     roles=("user", "assistant"),
@@ -392,7 +398,6 @@ conv_llava_llama_3 = Conversation(
     sep="<|eot_id|>",
     sep_style=SeparatorStyle.LLAMA_3,
     tokenizer_id="meta-llama/Meta-Llama-3-8B-Instruct",
-    tokenizer=safe_load_tokenizer("meta-llama/Meta-Llama-3-8B-Instruct"),
     stop_token_ids=[128009],
 )
 
