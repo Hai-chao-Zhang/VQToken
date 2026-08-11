@@ -2,72 +2,116 @@
 line-length = 240
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "llava"
 version = "1.7.0.dev0"
-description = "LLaVA OneVision: The Next Generation of LLaVA with Better Image and Video Understanding Capabilities"
+description = "VQToken on LLaVA-OneVision"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10,<3.12"
+license = "BSD-3-Clause AND Apache-2.0 AND MIT"
+license-files = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSES/Apache-2.0.txt",
+    "LICENSES/lmms-eval-v0.2.4-LICENSE.txt",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache Software License",
 ]
 
 [project.optional-dependencies]
 standalone = [
     "shortuuid",
-    "httpx==0.24.0",
+    "httpx==0.23.3",
     "einops",
     "ftfy",
 ]
 
-
-train = [
+eval = [
     "llava[standalone]",
-    "numpy==1.26.1",
-    "open_clip_torch",
-    "fastapi",
-    "markdown2[all]",
-    "numpy",
-    "requests",
-    "sentencepiece",
-    "torch==2.1.2",
-    "torchvision==0.16.2",
-    "uvicorn",
-    "wandb",
-    "deepspeed==0.14.4",
-    "peft==0.4.0",
-    "accelerate>=0.29.1",
-    "tokenizers~=0.15.2",
-    "transformers@git+https://github.com/huggingface/transformers.git@1c39974a4c4036fd641bc1191cc32799f85715a4",
-    "bitsandbytes==0.41.0",
-    "scikit-learn==1.2.2",
-    "sentencepiece~=0.1.99",
+    "accelerate==0.29.3",
+    "av",
+    "datasets==2.16.1",
+    "decord",
     "einops==0.6.1",
     "einops-exts==0.0.4",
-    "gradio_client==0.2.9",
-    "urllib3<=2.0.0",
-    "datasets==2.16.1",
-    "pydantic==1.10.8",
-    "timm",
+    "evaluate>=0.4.0",
     "hf_transfer",
-    "opencv-python",
-    "av",
-    "decord",
-    "tyro",
+    "jsonlines",
+    "Jinja2",
+    "loguru",
+    "matplotlib",
+    "mpmath",
+    "nltk",
+    "numexpr",
+    "numpy==1.26.4",
+    "open_clip_torch",
+    "openai",
+    "opencv-python-headless==4.9.0.80",
+    "openpyxl",
+    "packaging",
+    "peft==0.4.0",
+    "pillow",
+    "protobuf==3.20",
+    "pybind11>=2.6.2",
+    "pycocoevalcap",
+    "pydantic==1.10.8",
+    "pytablewriter",
+    "pyyaml",
+    "requests",
+    "sacrebleu>=1.5.0",
+    "scikit-learn==1.2.2",
+    "sentencepiece==0.1.99",
     "scipy",
+    "sqlitedict==2.1.0",
+    "sympy",
+    "tenacity==8.3.0",
+    "timm",
+    "tiktoken",
+    "torch==2.1.2",
+    "torchvision==0.16.2",
+    "tokenizers~=0.15.2",
+    "tqdm-multiprocess",
+    "transformers@git+https://github.com/huggingface/transformers.git@1c39974a4c4036fd641bc1191cc32799f85715a4",
+    "transformers-stream-generator",
+    "wandb>=0.16.0",
+    "yt-dlp",
+    "zss",
+    "zstandard",
 ]
 
+train = [
+    "llava[eval]",
+    "bitsandbytes==0.41.0",
+    "deepspeed==0.14.4",
+    "fastapi",
+    "gradio_client==0.2.9",
+    "markdown2[all]",
+    "urllib3<=2.0.0",
+    "tyro",
+    "uvicorn",
+]
+
+test = [
+    "pytest>=8,<9",
+    "torch==2.1.2",
+]
+
+[project.scripts]
+lmms-eval = "lmms_eval.__main__:cli_evaluate"
+
 [project.urls]
-"Homepage" = "https://llava-vl.github.io"
-"Bug Tracker" = "https://github.com/haotian-liu/LLaVA/issues"
+"Homepage" = "https://www.zhanghaichao.xyz/VQToken/"
+"Repository" = "https://github.com/Hai-chao-Zhang/VQToken"
 
 [tool.setuptools.packages.find]
-include = ["llava*", "trl*"]
+include = ["llava*", "trl*", "VQToken*", "lmms_eval*"]
 exclude = [
+    "lmms_eval.lmms_eval*",
+    "lmms_eval.llava*",
     "assets*",
     "benchmark*",
     "docs",
@@ -81,6 +125,15 @@ exclude = [
     "mlx_configs*",
     "wandb*",
     "notebooks*",
+]
+
+[tool.setuptools.package-data]
+lmms_eval = [
+    "tasks/**/*.yaml",
+    "tasks/**/*_yaml*",
+    "tasks/**/*.json",
+    "tasks/**/*.csv",
+    "tasks/**/*.ttf",
 ]
 
 [tool.wheel]

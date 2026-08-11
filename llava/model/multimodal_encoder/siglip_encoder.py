@@ -547,7 +547,17 @@ class SigLipVisionTower(nn.Module):
 
         self.image_processor = SigLipImageProcessor()
 
-        if not delay_load:
+        if getattr(vision_tower_cfg, "use_embedded_vision", False):
+            # LLaVA-OneVision checkpoints can contain the complete (trimmed)
+            # SigLIP tower. Instantiate the architecture locally so the outer
+            # from_pretrained call can populate it, without downloading a
+            # second 3.5 GB copy from the vision-tower repository first.
+            self.vision_tower = SigLipVisionModel(self.config)
+            del self.vision_tower.vision_model.encoder.layers[-1:]
+            self.vision_tower.vision_model.head = nn.Identity()
+            self.vision_tower.requires_grad_(False)
+            self.is_loaded = True
+        elif not delay_load:
             rank0_print(f"Loading vision tower: {vision_tower}")
             self.load_model()
         elif getattr(vision_tower_cfg, "unfreeze_mm_vision_tower", False):
@@ -579,7 +589,7 @@ class SigLipVisionTower(nn.Module):
             for image in images:
                 image_forward_out = self.vision_tower(image.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
                 image_feature = image_forward_out.hidden_states[-1].to(image.dtype)
-                assert image_features.shape[-2] == 729
+                assert image_feature.shape[-2] == 729
                 image_features.append(image_feature)
         else:
             image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)

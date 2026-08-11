@@ -61,7 +61,12 @@ class LlavaMetaModel:
 
             if "unpad" in getattr(config, "mm_patch_merge_type", ""):
                 self.image_newline = nn.Parameter(torch.empty(config.hidden_size, dtype=self.dtype))
-        self.cross_attention = VQAttn(query_dim=729, context_dim=896, num_heads=8)
+        if getattr(config, "use_vqtoken", False) and getattr(config, "vqtoken_mode", "centroids") == "attention":
+            self.cross_attention = VQAttn(
+                query_dim=getattr(config, "vqtoken_query_dim", 729),
+                context_dim=config.hidden_size,
+                num_heads=getattr(config, "vqtoken_attention_heads", 8),
+            )
 
         # # Apply cross-attention to get weighted clusters
         # weighted_clusters = self.cross_attention.cross_attention_weighted_clusters(query_tensor, context_tensor)
@@ -134,7 +139,11 @@ class LlavaMetaModel:
                 p.requires_grad = True
 
         if pretrain_mm_mlp_adapter is not None:
-            mm_projector_weights = torch.load(pretrain_mm_mlp_adapter, map_location="cpu")
+            mm_projector_weights = torch.load(
+                pretrain_mm_mlp_adapter,
+                map_location="cpu",
+                weights_only=True,
+            )
 
             def get_w(weights, keyword):
                 return {k.split(keyword + ".")[1]: v for k, v in weights.items() if keyword in k}
@@ -217,13 +226,21 @@ class LlavaMetaForCausalLM(ABC):
         # image_feature = image_feature.permute(1, 2, 0).contiguous()
         # return image_feature
         if not adaptive:
-            cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=32)
+            cluster_indices, clusters = kmeans_clustering_tokens_torch(
+                image_feature,
+                K=getattr(self.config, "vqtoken_max_clusters", 32),
+            )
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12)
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=24)
         else:
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=12, method=adaptive) # , self.config.num_iters) #image
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=128, method=adaptive) # , self.config.num_iters) #image
-            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=32, method=adaptive) # , self.config.num_iters) #image
+            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(
+                image_feature,
+                max_K=getattr(self.config, "vqtoken_max_clusters", 32),
+                min_K=getattr(self.config, "vqtoken_min_clusters", 12),
+                method=adaptive,
+            )
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12) # , self.config.num_iters) #image
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=int(0.3* image_feature.shape[0]*image_feature.shape[1])) # , self.config.num_iters) #image
         cluster_indices = cluster_indices.type(image_feature.dtype)
@@ -248,10 +265,18 @@ class LlavaMetaForCausalLM(ABC):
         # image_feature = image_feature.permute(1, 2, 0).contiguous()
         # return image_feature
         if not adaptive:
-            cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=32)
+            cluster_indices, clusters = kmeans_clustering_tokens_torch(
+                image_feature,
+                K=getattr(self.config, "vqtoken_max_clusters", 32),
+            )
         else:
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=12, method=adaptive) # , self.config.num_iters) #image
-            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=32, method=adaptive) # , self.config.num_iters) #image
+            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(
+                image_feature,
+                max_K=getattr(self.config, "vqtoken_max_clusters", 32),
+                min_K=getattr(self.config, "vqtoken_min_clusters", 12),
+                method=adaptive,
+            )
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12) # , self.config.num_iters) #image
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=int(0.3* image_feature.shape[0]*image_feature.shape[1])) # , self.config.num_iters) #image
         cluster_indices = cluster_indices.type(image_feature.dtype)
@@ -277,12 +302,20 @@ class LlavaMetaForCausalLM(ABC):
         # return image_feature
         if not adaptive:
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12)
-            cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=32)
+            cluster_indices, clusters = kmeans_clustering_tokens_torch(
+                image_feature,
+                K=getattr(self.config, "vqtoken_max_clusters", 32),
+            )
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=64)
         else:
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=12, method=adaptive) # , self.config.num_iters) #image
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=32, method=adaptive) # , self.config.num_iters) #image
-            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=32, method=adaptive) 
+            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(
+                image_feature,
+                max_K=getattr(self.config, "vqtoken_max_clusters", 32),
+                min_K=getattr(self.config, "vqtoken_min_clusters", 12),
+                method=adaptive,
+            )
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12) # , self.config.num_iters) #image
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=int(0.3* image_feature.shape[0]*image_feature.shape[1])) # , self.config.num_iters) #image
         cluster_indices = cluster_indices.type(image_feature.dtype)
@@ -307,10 +340,18 @@ class LlavaMetaForCausalLM(ABC):
         # image_feature = image_feature.permute(1, 2, 0).contiguous()
         # return image_feature
         if not adaptive:
-            cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=32)
+            cluster_indices, clusters = kmeans_clustering_tokens_torch(
+                image_feature,
+                K=getattr(self.config, "vqtoken_max_clusters", 32),
+            )
         else:
             # cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=12, method=adaptive) # , self.config.num_iters) #image
-            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(image_feature, max_K=32, method=adaptive) # , self.config.num_iters) #image
+            cluster_indices, clusters = adaptive_kmeans_clustering_tokens_torch(
+                image_feature,
+                max_K=getattr(self.config, "vqtoken_max_clusters", 32),
+                min_K=getattr(self.config, "vqtoken_min_clusters", 12),
+                method=adaptive,
+            )
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12) # , self.config.num_iters) #image
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=int(0.3* image_feature.shape[0]*image_feature.shape[1])) # , self.config.num_iters) #image
         cluster_indices = cluster_indices.type(image_feature.dtype)
@@ -623,7 +664,7 @@ class LlavaMetaForCausalLM(ABC):
                 if self.config.add_faster_video:
                     cur_mm_spatial_pool_stride = cur_mm_spatial_pool_stride * 2
                     faster_video_feature = self.get_2dPool(feat,cur_mm_spatial_pool_stride)
-            if slower_img_feat is not 0:
+            if not isinstance(slower_img_feat, int):
                 all_videos_or_images_features.append(slower_img_feat)
             else:
                 all_videos_or_images_features.append(feat)
@@ -870,6 +911,8 @@ class LlavaMetaForCausalLM(ABC):
         
     def prepare_inputs_labels_for_multimodal(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities=["image"], image_sizes=None, vis=False):
         text_token_count = input_ids.shape[1]
+        total_tokens_before = 0
+        total_tokens_after = 0
 
         vision_tower = self.get_vision_tower()
         # rank_print(modalities)
@@ -878,6 +921,17 @@ class LlavaMetaForCausalLM(ABC):
 
         if isinstance(modalities, str):
             modalities = [modalities]
+
+        # Some lmms-eval video tasks provide sampled frames directly as one
+        # [frames, channels, height, width] tensor. Treat that as one video,
+        # rather than as an image batch whose later frames would be dropped.
+        if (
+            isinstance(images, torch.Tensor)
+            and images.ndim == 4
+            and len(modalities) == 1
+            and modalities[0] == "video"
+        ):
+            images = [images]
 
         # import pdb; pdb.set_trace()
         if type(images) is list or images.ndim == 5:
@@ -907,21 +961,30 @@ class LlavaMetaForCausalLM(ABC):
             image_features = []
 
 
-            total_tokens_before = 0
-            total_tokens_after = 0
             for idx, image_feat in enumerate(encoded_image_features):
                 num_tokens_before = image_feat.shape[0] if len(image_feat.shape)==2 else image_feat.shape[0] * image_feat.shape[1]   # Original token count
                 total_tokens_before += num_tokens_before  # Track total before compression
 
 
-                if idx in video_idx_in_batch:
+                use_vqtoken = idx in video_idx_in_batch and getattr(self.config, "use_vqtoken", False)
+                if use_vqtoken:
 
                     # compression_method = self.token_dynamics
                     
                     # compression_method = self.token_dynamics_random_map
                     # compression_method = self.token_dynamics_random_base
                     
-                    compression_method = self.token_dynamics_only_base
+                    compression_mode = getattr(self.config, "vqtoken_mode", "centroids")
+                    compression_methods = {
+                        "centroids": self.token_dynamics_only_base,
+                        "attention": self.token_dynamics,
+                    }
+                    if compression_mode not in compression_methods:
+                        raise ValueError(
+                            f"Unsupported vqtoken_mode {compression_mode!r}; "
+                            f"expected one of {sorted(compression_methods)}"
+                        )
+                    compression_method = compression_methods[compression_mode]
                     # compression_method = self.token_merging_tome_vid
                     # compression_method = self.token_merging_tome
                     # compression_method = self.token_pruning_simple
@@ -933,7 +996,9 @@ class LlavaMetaForCausalLM(ABC):
                     
                     
                     # adaptive='' # ''  or "elbow" or "silhouette"
-                    adaptive='elbow' # ''  or "elbow" or "silhouette"
+                    adaptive = getattr(self.config, "vqtoken_selection_method", "elbow")
+                    if adaptive == "fixed":
+                        adaptive = ""
                     vis=False
 
                     if vis==True:
@@ -989,7 +1054,7 @@ class LlavaMetaForCausalLM(ABC):
             mm_newline_position = getattr(self.config, "mm_newline_position", "one_token")
 
             if mm_patch_merge_type == "flat":
-                image_features = [x.flatten(0, 1) for x in image_features]
+                image_features = [x.flatten(0, 1) if x.ndim == 3 else x for x in image_features]
 
             elif mm_patch_merge_type.startswith("spatial"):
                 new_image_features = []
@@ -1001,6 +1066,12 @@ class LlavaMetaForCausalLM(ABC):
                     # rank0_print("At least we are reaching here")
                     # import pdb; pdb.set_trace()
                     if image_idx in video_idx_in_batch:  # video operations
+                        if getattr(self.config, "use_vqtoken", False) and mm_newline_position in {"grid", "frame"}:
+                            raise ValueError(
+                                "VQToken produces a global 2D codebook and supports "
+                                "mm_newline_position='one_token' or 'no_token', not "
+                                f"{mm_newline_position!r}"
+                            )
                         # rank0_print("Video")
                         if mm_newline_position == "grid":
                             # Grid-wise
@@ -1029,7 +1100,12 @@ class LlavaMetaForCausalLM(ABC):
                             
                         elif mm_newline_position == "one_token":
                             # one-token
-                            # image_feature = image_feature.flatten(0, 1)
+                            image_feature = image_feature.flatten(0, 1) if image_feature.ndim == 3 else image_feature
+                            if image_feature.ndim != 2:
+                                raise ValueError(
+                                    "video features must be 2D or 3D before one-token newline merging, "
+                                    f"got shape {tuple(image_feature.shape)}"
+                                )
                             if 'unpad' in mm_patch_merge_type:
                                 image_feature = torch.cat((
                                     image_feature,
@@ -1037,7 +1113,7 @@ class LlavaMetaForCausalLM(ABC):
                                 ), dim=0)
                             new_image_features.append(image_feature)      
                         elif mm_newline_position == "no_token":
-                            new_image_features.append(image_feature.flatten(0, 1))
+                            new_image_features.append(image_feature.flatten(0, 1) if image_feature.ndim == 3 else image_feature)
                         else:
                             raise ValueError(f"Unexpected mm_newline_position: {mm_newline_position}")
                     elif image_feature.shape[0] > 1:  # multi patches and multi images operations
@@ -1108,6 +1184,8 @@ class LlavaMetaForCausalLM(ABC):
                 raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
         else:
             image_features = self.encode_images(images)
+            total_tokens_before = image_features.shape[0] * image_features.shape[1]
+            total_tokens_after = total_tokens_before
 
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, "tune_mm_mlp_adapter", False) and getattr(self.config, "mm_use_im_start_end", False):
@@ -1280,7 +1358,11 @@ class LlavaMetaForCausalLM(ABC):
                     p.requires_grad = False
 
             if model_args.pretrain_mm_mlp_adapter:
-                mm_projector_weights = torch.load(model_args.pretrain_mm_mlp_adapter, map_location="cpu")
+                mm_projector_weights = torch.load(
+                    model_args.pretrain_mm_mlp_adapter,
+                    map_location="cpu",
+                    weights_only=True,
+                )
                 embed_tokens_weight = mm_projector_weights["model.embed_tokens.weight"]
                 assert num_new_tokens == 2
                 if input_embeddings.shape == embed_tokens_weight.shape:

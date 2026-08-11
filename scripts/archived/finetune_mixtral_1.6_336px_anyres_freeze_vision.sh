@@ -49,7 +49,7 @@ DATA_NAME=$dataset_name
 
 
 # wandb configure
-export WANDB_API_KEY=e464cc107357c7b38e87f239bc3eb2ce5fb73c7c
+export WANDB_API_KEY="${WANDB_API_KEY:-}"
 export WANDB_PROJECT=llava
 
 export WANDB_NAME=$PROJECT_NAME--$DATA_NAME--336px--unfreeze--anyres--sft
@@ -94,4 +94,3 @@ deepspeed --master_port 26000 \
     --model_max_length 2048 \
     --gradient_checkpointing True \
     --dataloader_num_workers 16 \
-

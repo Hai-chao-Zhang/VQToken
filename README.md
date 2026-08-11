@@ -57,7 +57,7 @@
 <p align="center">
   <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="64" style="vertical-align:bottom;" alt="SMILE Lab"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="https://brand.northeastern.edu/wp-content/uploads/2025/01/seal-yellow.svg" height="64" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
+  <img src="https://brand.northeastern.edu/wp-content/uploads/2026/07/seal-formal_gold-2048x1189.png" height="64" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
   &nbsp;&nbsp;&nbsp;
 </p>
 
@@ -92,112 +92,127 @@ VQToken
 
 ## 🛠️ Installation
 
+The supported environment is Linux with Python 3.10 and a CUDA-capable GPU. The
+repository vendors its VQToken-aware `lmms_eval`; do not clone a second copy of
+`lmms-eval` into this checkout.
+
 ```bash
-# clone your repo
 git clone https://github.com/Hai-chao-Zhang/VQToken.git
 cd VQToken
 
-# conda env
 conda create -n vqtoken python=3.10 -y
 conda activate vqtoken
 
-# install lmms-eval (dev mode)
-git clone https://github.com/EvolvingLMMs-Lab/lmms-eval
-cd lmms-eval
-pip install -e .
-cd ..
+# Inference/evaluation plus unit tests
+python -m pip install --upgrade pip
+python -m pip install -e ".[eval,test]"
+python -m pip check
+pytest -q tests
 
-# install VQToken (train extras)
-pip install -e ".[train]"
+# Add training dependencies only when needed
+python -m pip install -e ".[train]"
 ```
 
 ---
 
-## 🚀 Quickstart: Evaluation
+## 🚀 Quickstart
 
-Environment variables (adjust as needed):
+### 1. Core tests (no model download)
+
 ```bash
-export HF_HOME="/path/to/your/hf/cache"
-export HF_TOKEN="your_hf_token_here"
-export HF_HUB_ENABLE_HF_TRANSFER=1
-
-# Optional (only if any eval calls OpenAI endpoints)
-export OPENAI_API_KEY="your_openai_key_here"
-
-# Helpful on some single-GPU setups
-export NCCL_P2P_DISABLE="1"
-export NCCL_IB_DISABLE="1"
+pytest -q tests/test_vqtoken_core.py
 ```
 
-Run ActivityNet-QA with the 0.5B OneVision checkpoint:
+### 2. One-video GPU smoke test
+
+The bounded smoke test uses the bundled MP4 and, by default, the ungated public
+LLaVA-OneVision 0.5B base checkpoint. VQToken compression is explicitly enabled,
+so this validates the code path without benchmark data or paid evaluator APIs.
+The `llava_onevision_vqtoken` evaluator uses the same public checkpoint as its
+anonymous-access default; select the released checkpoint explicitly for paper
+checkpoint results.
+
 ```bash
+CUDA_VISIBLE_DEVICES=0 bash test_vqtoken_0.5b.sh
+```
+
+The released VQToken checkpoint is currently a gated Hugging Face repository
+(`private=false`, `gated=auto`). After accepting its access terms, authenticate
+with your own token and select it explicitly:
+
+```bash
+export HF_TOKEN="<token for an account with approved access>"
+PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b \
+CUDA_VISIBLE_DEVICES=0 \
+bash test_vqtoken_0.5b.sh
+```
+
+The script pins known model revisions, downloads only inference artifacts (not
+optimizer states), and reuses the SigLIP weights embedded in compatible
+OneVision checkpoints instead of fetching a second 3.5 GB vision checkpoint.
+
+### 3. Full `lmms-eval` benchmark (optional)
+
+ActivityNetQA is **not** a smoke test: its video archives exceed 120 GiB and its
+configured metric calls an OpenAI judge for every sample. Run it only after
+preparing sufficient storage and intentionally configuring that paid API.
+
+```bash
+export HF_HOME="/path/with/at-least-250-GiB-free"
+export OPENAI_API_KEY="<key you intend to use for benchmark judging>"
+# Optional: export OPENAI_MODEL="<judge model available to your account>"
 PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b
 
-CUDA_VISIBLE_DEVICES=2 accelerate launch --num_processes=1 --main_process_port 29509   -m lmms_eval   --model llava_onevision_vqtoken   --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen   --tasks activitynetqa --batch_size 1   --log_samples   --log_samples_suffix llava_onevision   --output_path ./logs_new/
-```
-
-Or simply:
-```bash
-bash https://raw.githubusercontent.com/Hai-chao-Zhang/VQToken/main/test_vqtoken_0.5b.sh
+CUDA_VISIBLE_DEVICES=0 accelerate launch --num_processes=1 --main_process_port 29509 \
+  -m lmms_eval \
+  --model llava_onevision_vqtoken \
+  --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen \
+  --tasks activitynetqa \
+  --batch_size 1 \
+  --limit 1 \
+  --log_samples \
+  --output_path ./logs_new/
 ```
 
 > You can change `--tasks` to other video QA benchmarks available in **lmms-eval**.
 
 ---
 
-## 🧪 Minimal Prediction Snippet
+## 🧪 Minimal Prediction
 
-```python
-import os, copy, time, torch, numpy as np
-from decord import VideoReader, cpu
-from llava.model.builder import load_pretrained_model
-from llava.mm_utils import tokenizer_image_token
-from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
-from llava.conversation import conv_templates
-
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-pretrained = "haichaozhang/VQ-Token-llava-ov-0.5b"
-tokenizer, model, image_processor, _ = load_pretrained_model(
-    pretrained, None, "llava_qwen", device_map="auto",
-    attn_implementation="sdpa", multimodal=True
-)
-model.eval()
-
-def load_video_frames(path, n=16):
-    vr = VideoReader(path, ctx=cpu(0))
-    idx = np.linspace(0, len(vr)-1, n, dtype=int).tolist()
-    return vr.get_batch(idx).asnumpy()  # (T,H,W,C)
-
-video = "sample/demo.mp4"
-frames_np = load_video_frames(video, 16)
-frames = image_processor.preprocess(frames_np, return_tensors="pt")["pixel_values"].half().to(device)
-image_tensors = [frames]
-
-conv = copy.deepcopy(conv_templates["qwen_1_5"])
-question = f"{DEFAULT_IMAGE_TOKEN}\nDescribe what's happening in this video."
-conv.append_message(conv.roles[0], question)
-conv.append_message(conv.roles[1], None)
-prompt = conv.get_prompt()
-
-input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
-image_sizes = [f.shape[:2] for f in frames_np]
-
-with torch.no_grad():
-    out = model.generate(
-        input_ids, images=image_tensors, image_sizes=image_sizes,
-        do_sample=False, temperature=0, max_new_tokens=512,
-        modalities=["video"], vis=True
-    )
-
-print(tokenizer.batch_decode(out, skip_special_tokens=True)[0])
+```bash
+python scripts/smoke_inference.py --help
+python scripts/smoke_inference.py \
+  --video playground/demo/xU25MMA2N4aVtYay.mp4 \
+  --device cuda:0
 ```
 
 ---
 
 ## 🏋️ Training
 
-- OneVision 0.5B finetuning example:  
-  `bash finetune_ov_all.sh`
+Training data mixtures are large and must be prepared locally. The launcher no
+longer contains fake API keys, private checkpoint paths, or hard-coded GPU IDs;
+it validates inputs before starting.
+
+```bash
+export DATA_YAML=/absolute/path/to/prepared-datasets.yaml
+export IMAGE_FOLDER=/absolute/path/to/images
+export VIDEO_FOLDER=/absolute/path/to/videos
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+export PRETRAINED_MODEL=lmms-lab/llava-onevision-qwen2-0.5b-ov
+
+bash finetune_ov_all.sh
+```
+
+The default base checkpoint embeds its SigLIP weights. If you substitute a
+checkpoint that does not, set `USE_EMBEDDED_VISION=false` so the configured
+vision tower is loaded separately.
+
+Set `REPORT_TO=wandb` only after configuring your own W&B credentials. The
+public LLaVA-OneVision data collections are linked in
+[`scripts/train/README.md`](scripts/train/README.md), but several legacy YAMLs
+still contain original cluster paths and must be rewritten for your layout.
 
 ---
 

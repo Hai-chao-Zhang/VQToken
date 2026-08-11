@@ -16,7 +16,6 @@ from accelerate.state import AcceleratorState
 from decord import VideoReader, cpu
 from packaging import version
 from tqdm import tqdm
-from transformers import AutoConfig
 
 from lmms_eval import utils
 from lmms_eval.api.instance import Instance
@@ -69,14 +68,14 @@ class Llava_OneVision_VQToken(lmms):
 
     def __init__(
         self,
-        pretrained: str = "haichaozhang/VQ-Token-llava-ov-0.5b", # "./tmp/LLaVa-Video/ckpt/llava-onevision-google_siglip-so400m-patch14-384-Qwen_Qwen2-7B-Instruct-ov_stage_am9-1e-6lr-all-model/checkpoint-15000/",
+        pretrained: str = "lmms-lab/llava-onevision-qwen2-0.5b-ov",
         truncation: Optional[bool] = True,
         device: Optional[str] = "cuda:0",
         batch_size: Optional[Union[int, str]] = 1,
         model_name: Optional[str] = None,
         attn_implementation: Optional[str] = best_fit_attn_implementation,
         device_map: Optional[str] = "cuda:0",
-        conv_template: Optional[str] = "vicuna_v1",
+        conv_template: Optional[str] = "qwen_1_5",
         use_cache: Optional[bool] = True,
         truncate_context: Optional[bool] = False,  # whether to truncate the context in generation, set it False for LLaVA-1.6
         customized_config: Optional[str] = None,  # ends in json
@@ -85,11 +84,18 @@ class Llava_OneVision_VQToken(lmms):
         mm_spatial_pool_mode: Optional[str] = "bilinear",
         token_strategy: Optional[str] = "single",  # could be "single" or "multiple", "multiple" denotes adding multiple <image> tokens for each frame
         video_decode_backend: str = "decord",
+        vqtoken_mode: str = "centroids",
+        vqtoken_selection_method: str = "fixed",
+        vqtoken_min_clusters: int = 12,
+        vqtoken_max_clusters: int = 32,
+        use_embedded_vision: Optional[bool] = None,
         **kwargs,
     ) -> None:
         super().__init__()
         # Do not use kwargs for now
         assert kwargs == {}, f"Unexpected kwargs: {kwargs}"
+        if token_strategy != "single":
+            raise ValueError("VQToken currently supports token_strategy=single for video inputs")
 
         accelerator_kwargs = InitProcessGroupKwargs(timeout=timedelta(weeks=52))
         accelerator = Accelerator(kwargs_handlers=[accelerator_kwargs])
@@ -100,8 +106,8 @@ class Llava_OneVision_VQToken(lmms):
             self._device = torch.device(device)
             self.device_map = device_map
         else:
-            self._device = torch.device(f"cuda:{accelerator.local_process_index}")
-            self.device_map = f"cuda:{accelerator.local_process_index}"
+            self._device = torch.device(device)
+            self.device_map = device_map
 
         llava_model_args = {
             "multimodal": True,
@@ -112,7 +118,10 @@ class Llava_OneVision_VQToken(lmms):
             llava_model_args["attn_implementation"] = attn_implementation
         if "use_flash_attention_2" in kwargs:
             llava_model_args["use_flash_attention_2"] = kwargs["use_flash_attention_2"]
-        model_name = model_name if model_name is not None else get_model_name_from_path(pretrained)
+        if model_name is None:
+            model_name = get_model_name_from_path(pretrained)
+            if pretrained.rstrip("/") == "haichaozhang/VQ-Token-llava-ov-0.5b":
+                model_name = "llava_qwen"
 
         self.pretrained = pretrained
         self.token_strategy = token_strategy
@@ -121,10 +130,29 @@ class Llava_OneVision_VQToken(lmms):
         self.mm_spatial_pool_mode = mm_spatial_pool_mode
         self.video_decode_backend = video_decode_backend
 
-        overwrite_config = {}
-        overwrite_config["mm_spatial_pool_stride"] = self.mm_spatial_pool_stride
-        overwrite_config["mm_spatial_pool_mode"] = self.mm_spatial_pool_mode
-        cfg_pretrained = AutoConfig.from_pretrained(self.pretrained)
+        if vqtoken_mode != "centroids":
+            raise ValueError("the audited llava_onevision_vqtoken path currently supports vqtoken_mode=centroids")
+        if vqtoken_selection_method not in {"fixed", "elbow", "silhouette"}:
+            raise ValueError("vqtoken_selection_method must be fixed, elbow, or silhouette")
+        if vqtoken_min_clusters < 1 or vqtoken_max_clusters < vqtoken_min_clusters:
+            raise ValueError("VQToken cluster bounds must satisfy 1 <= min <= max")
+
+        if use_embedded_vision is None:
+            use_embedded_vision = pretrained.rstrip("/") in {
+                "lmms-lab/llava-onevision-qwen2-0.5b-ov",
+                "haichaozhang/VQ-Token-llava-ov-0.5b",
+            }
+
+        overwrite_config = {
+            "mm_spatial_pool_stride": self.mm_spatial_pool_stride,
+            "mm_spatial_pool_mode": self.mm_spatial_pool_mode,
+            "use_vqtoken": True,
+            "vqtoken_mode": vqtoken_mode,
+            "vqtoken_selection_method": vqtoken_selection_method,
+            "vqtoken_min_clusters": vqtoken_min_clusters,
+            "vqtoken_max_clusters": vqtoken_max_clusters,
+            "use_embedded_vision": use_embedded_vision,
+        }
 
         llava_model_args["overwrite_config"] = overwrite_config
         try:
@@ -265,11 +293,11 @@ class Llava_OneVision_VQToken(lmms):
                     visual = [visual[i] for i in sample_indices]
                     assert len(visual) == self.metadata["sample_frames"]
 
-                    image_tensor = process_images(visual, self._image_processor, self._config)
-                    if type(image_tensor) is list:
-                        image_tensor = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensor]
-                    else:
-                        image_tensor = image_tensor.to(dtype=torch.float16, device=self.device)
+                    frames = self._image_processor.preprocess(visual, return_tensors="pt")["pixel_values"].to(
+                        dtype=self.model.dtype,
+                        device=self.device,
+                    )
+                    image_tensor = [frames]
 
                     task_type = "video"
 
@@ -289,11 +317,10 @@ class Llava_OneVision_VQToken(lmms):
                             frames = self.load_video(visual, self.max_frames_num)
                         elif self.video_decode_backend == "pyav":
                             frames = read_video_pyav(visual[0], num_frm=self.max_frames_num)
-                        frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].half().cuda()
+                        frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].to(dtype=torch.float16, device=self.device)
                         image_tensor.append(frames)
-                    except Exception as e:
-                        eval_logger.error(f"Error {e} in loading video")
-                        image_tensor = None
+                    except Exception as exc:
+                        raise RuntimeError(f"Failed to load video {visual!r}") from exc
 
                     task_type = "video"
 
@@ -416,7 +443,7 @@ class Llava_OneVision_VQToken(lmms):
                     image_tensor = None
                 else:
                     if len(visual) > 1 or "image_aspect_ratio" not in self._config.__dict__:  # for multi image case, we treat per image aspect ratio as "pad" by default.
-                        self._config.image_aspect_ratio = getattr(gen_kwargs, "image_aspect_ratio", "pad")
+                        self._config.image_aspect_ratio = gen_kwargs.get("image_aspect_ratio", "pad")
                         eval_logger.info(f"In Multi-Image setting, image aspect ratio: {self._config.image_aspect_ratio}")
 
                     if "task_type" in metadata and metadata["task_type"] == "video" and "sample_frames" in metadata:  # overwrite logic for video task with multiple static image frames
@@ -425,11 +452,11 @@ class Llava_OneVision_VQToken(lmms):
                         visual = [visual[i] for i in sample_indices]
                         assert len(visual) == metadata["sample_frames"]
 
-                        image_tensor = process_images(visual, self._image_processor, self._config)
-                        if type(image_tensor) is list:
-                            image_tensor = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensor]
-                        else:
-                            image_tensor = image_tensor.to(dtype=torch.float16, device=self.device)
+                        frames = self._image_processor.preprocess(visual, return_tensors="pt")["pixel_values"].to(
+                            dtype=self.model.dtype,
+                            device=self.device,
+                        )
+                        image_tensor = [frames]
 
                         task_type = "video"
                         placeholder_count = 1
@@ -451,11 +478,10 @@ class Llava_OneVision_VQToken(lmms):
                                 frames = self.load_video(visual, self.max_frames_num)
                             elif self.video_decode_backend == "pyav":
                                 frames = read_video_pyav(visual[0], num_frm=self.max_frames_num)
-                            frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].half().cuda()
+                            frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].to(dtype=torch.float16, device=self.device)
                             image_tensor.append(frames)
-                        except Exception as e:
-                            eval_logger.error(f"Error {e} in loading video")
-                            image_tensor = None
+                        except Exception as exc:
+                            raise RuntimeError(f"Failed to load video {visual!r}") from exc
 
                         task_type = "video"
                         placeholder_count = len(frames) if self.token_strategy == "multiple" else 1
@@ -620,7 +646,7 @@ class Llava_OneVision_VQToken(lmms):
                         image_tensor = None
                     else:
                         if len(visual) > 1 or "image_aspect_ratio" not in self._config.__dict__:  # for multi image case, we treat per image aspect ratio as "pad" by default.
-                            self._config.image_aspect_ratio = getattr(gen_kwargs, "image_aspect_ratio", "pad")
+                            self._config.image_aspect_ratio = gen_kwargs.get("image_aspect_ratio", "pad")
                             eval_logger.info(f"In Multi-Image setting, image aspect ratio: {self._config.image_aspect_ratio}")
 
                         if "task_type" in metadata and metadata["task_type"] == "video" and "sample_frames" in metadata:  # overwrite logic for video task with multiple static image frames
@@ -629,11 +655,11 @@ class Llava_OneVision_VQToken(lmms):
                             visual = [visual[i] for i in sample_indices]
                             assert len(visual) == metadata["sample_frames"]
 
-                            image_tensor = process_images(visual, self._image_processor, self._config)
-                            if type(image_tensor) is list:
-                                image_tensor = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensor]
-                            else:
-                                image_tensor = image_tensor.to(dtype=torch.float16, device=self.device)
+                            frames = self._image_processor.preprocess(visual, return_tensors="pt")["pixel_values"].to(
+                                dtype=self.model.dtype,
+                                device=self.device,
+                            )
+                            image_tensor = [frames]
 
                             task_type = "video"
                             placeholder_count = 1
@@ -655,11 +681,10 @@ class Llava_OneVision_VQToken(lmms):
                                     frames = self.load_video(visual, self.max_frames_num)
                                 elif self.video_decode_backend == "pyav":
                                     frames = read_video_pyav(visual[0], num_frm=self.max_frames_num)
-                                frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].half().cuda()
+                                frames = self._image_processor.preprocess(frames, return_tensors="pt")["pixel_values"].to(dtype=torch.float16, device=self.device)
                                 image_tensor.append(frames)
-                            except Exception as e:
-                                eval_logger.error(f"Error {e} in loading video")
-                                image_tensor = None
+                            except Exception as exc:
+                                raise RuntimeError(f"Failed to load video {visual!r}") from exc
 
                             task_type = "video"
                             placeholder_count = len(frames) if self.token_strategy == "multiple" else 1
