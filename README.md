@@ -55,9 +55,9 @@
   <sub> SMILE Lab, Northeastern University</sub>
 </p>
 <p align="center">
-  <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="64" style="vertical-align:bottom;" alt="SMILE Lab"/>
+  <img src="https://bpb-us-e1.wpmucdn.com/sites.northeastern.edu/dist/6/7016/files/2024/02/smilelab-logo-28ff31cd9039134d.png" height="64" style="vertical-align:top;" alt="SMILE Lab"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="https://brand.northeastern.edu/wp-content/uploads/2026/07/seal-formal_gold-2048x1189.png" height="64" style="vertical-align:bottom;" alt="Northeastern University Seal"/>
+  <img src="https://brand.northeastern.edu/wp-content/uploads/2026/07/seal-formal_gold-2048x1189.png" height="64" style="vertical-align:top;" alt="Northeastern University Seal"/>
   &nbsp;&nbsp;&nbsp;
 </p>
 
@@ -70,8 +70,9 @@
 |------|--------|-------------|
 | **2025/09/20** | ✅ | Release **VQ-Token 0.5B** pretrained model on Hugging Face |
 | **2025/09/21** | ✅ | Release **testing & training code** (this repo) |
-| *TBD* | ⭕ | Project **website** enhancements go online |
-| *TBD* | ⭕ | Update **Hugging Face model card README** |
+| **2026/08/10**  | ✅ | Project **website** enhancements go online |
+| ***2026/08/10** | ✅ | Update **Hugging Face model card README** |
+| *TBD* | ⭕ | Pull Request our method in lmms-eval and VLMevalkit for easy evaluation  |
 | *Future Ideas* | 💡 | Suggestions/collab: `zhang dot haich at northeastern dot edu` |
 
 ---
