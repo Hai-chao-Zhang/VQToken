@@ -61,7 +61,13 @@ class ModelArguments:
     model_class_name: Optional[str] = field(default=None, metadata={"help": "Used to init model class, format is XXXXForCausalLM. e.g. currently XXXX is chosen from LlavaLlama, LlavaMixtral, LlavaMistral, Llama"})
 
     mm_tunable_parts: Optional[str] = field(
-        default=None, metadata={"help": 'Could be "mm_mlp_adapter", "mm_vision_resampler", "mm_vision_tower,mm_mlp_adapter,mm_language_model", "mm_vision_tower,mm_mlp_adapter,mm_language_model", "mm_mlp_adapter,mm_language_model"'}
+        default=None,
+        metadata={
+            "help": (
+                "Comma-separated components such as mm_vision_tower,mm_mlp_adapter,"
+                "mm_language_model. The audited VQToken training path supports centroid mode."
+            )
+        },
     )
     # deciding which part of the multimodal model to tune, will overwrite other previous settings
 
@@ -112,6 +118,13 @@ class ModelArguments:
     delay_load: Optional[bool] = field(default=True)
     add_faster_video: Optional[bool] = field(default=False)
     faster_token_stride: Optional[int] = field(default=10)
+
+    use_vqtoken: bool = field(default=False)
+    vqtoken_mode: str = field(default="centroids")
+    vqtoken_selection_method: str = field(default="fixed")
+    vqtoken_min_clusters: int = field(default=12)
+    vqtoken_max_clusters: int = field(default=32)
+    use_embedded_vision: bool = field(default=False)
 
 
 
@@ -164,7 +177,7 @@ class TrainingArguments(transformers.TrainingArguments):
     auto_find_batch_size: bool = field(default=False)
     gradient_checkpointing: bool = field(default=True)
     verbose_logging: bool = field(default=False)
-    attn_implementation: str = field(default="flash_attention_2", metadata={"help": "Use transformers attention implementation."})
+    attn_implementation: str = field(default="sdpa", metadata={"help": "Use transformers attention implementation."})
 
 
 # @dataclass
@@ -1300,7 +1313,7 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer, dat
 
 def get_model(model_args, training_args, bnb_model_from_pretrained_args):
     assert training_args.attn_implementation
-    if training_args.attn_implementation == "sdpa" and torch.__version__ < "2.1.2":
+    if training_args.attn_implementation == "sdpa" and version.parse(torch.__version__) < version.parse("2.1.2"):
         raise ValueError("The 'sdpa' attention implementation requires torch version 2.1.2 or higher.")
 
     customized_kwargs = dict()
@@ -1316,6 +1329,8 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
             model_args.mm_spatial_pool_out_channels is not None,
             model_args.mm_spatial_pool_mode is not None,
             model_args.mm_resampler_type is not None,
+            model_args.use_vqtoken,
+            model_args.use_embedded_vision,
         ]
     ):
         cfg_pretrained = AutoConfig.from_pretrained(model_args.model_name_or_path)
@@ -1346,6 +1361,36 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
 
     if model_args.mm_spatial_pool_mode is not None:
         overwrite_config["mm_spatial_pool_mode"] = model_args.mm_spatial_pool_mode
+
+    if model_args.use_embedded_vision:
+        overwrite_config["use_embedded_vision"] = True
+
+    if model_args.use_vqtoken:
+        if model_args.vqtoken_mode != "centroids":
+            raise ValueError(
+                f"Unsupported vqtoken_mode: {model_args.vqtoken_mode!r}; "
+                "the audited public path currently supports only centroids"
+            )
+        if model_args.vqtoken_selection_method not in {"fixed", "elbow", "silhouette"}:
+            raise ValueError(f"Unsupported vqtoken_selection_method: {model_args.vqtoken_selection_method}")
+        if not 1 <= model_args.vqtoken_min_clusters <= model_args.vqtoken_max_clusters:
+            raise ValueError("VQToken cluster bounds must satisfy 1 <= min <= max")
+        if model_args.mm_patch_merge_type.startswith("spatial") and model_args.mm_newline_position not in {
+            "one_token",
+            "no_token",
+        }:
+            raise ValueError(
+                "spatial VQToken compression requires --mm_newline_position one_token or no_token"
+            )
+        overwrite_config.update(
+            {
+                "use_vqtoken": True,
+                "vqtoken_mode": model_args.vqtoken_mode,
+                "vqtoken_selection_method": model_args.vqtoken_selection_method,
+                "vqtoken_min_clusters": model_args.vqtoken_min_clusters,
+                "vqtoken_max_clusters": model_args.vqtoken_max_clusters,
+            }
+        )
 
     if overwrite_config:
         assert cfg_pretrained is not None, "cfg_pretrained is None"
@@ -1671,10 +1716,6 @@ def train(attn_implementation=None):
                 for name, param in model.named_parameters():
                     if "vision_tower" not in name and "mm_projector" not in name and "vision_resampler" not in name:
                         param.requires_grad_(True)
-            if "cross_attention" in tunable_parts:
-                for name, param in model.named_parameters():
-                    if "cross_attention" in name:
-                        param.requires_grad_(True)
         total_params = sum(p.ds_numel if hasattr(p, "ds_numel") else p.numel() for p in model.parameters())
         trainable_params = sum(p.ds_numel if hasattr(p, "ds_numel") else p.numel() for p in model.parameters() if p.requires_grad)
         rank0_print(f"Total parameters: ~{total_params/1e6:.2f} MB)")
@@ -1723,7 +1764,6 @@ def train(attn_implementation=None):
             if hasattr(model, "generation_config"):
                 model.generation_config.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir, state_dict=state_dict)
-            model.cross_attention.save_pretrained(os.path.join(training_args.output_dir,"cross_attention"), state_dict=model.cross_attention.state_dict())
             torch.save(non_lora_state_dict, os.path.join(training_args.output_dir, "non_lora_trainables.bin"))
     else:
         safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)

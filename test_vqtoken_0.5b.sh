@@ -1,30 +1,31 @@
-export HF_HOME="your huggingface cache dir"
-export OPENAI_API_KEY="your OPENAI_API_KEY here"
-export HF_TOKEN="your huggingface key here"
-export HF_HUB_ENABLE_HF_TRANSFER=1
+#!/usr/bin/env bash
+set -euo pipefail
 
-export NCCL_P2P_DISABLE="1" 
-export NCCL_IB_DISABLE="1"
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "$REPO_ROOT"
 
-PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b
+# The released VQToken checkpoint is currently gated. The default public base
+# checkpoint still exercises this repository's VQToken compression path without
+# requiring an API key or downloading the 120+ GiB ActivityNetQA benchmark.
+PRETRAIN=${PRETRAIN:-lmms-lab/llava-onevision-qwen2-0.5b-ov}
+REVISION=${REVISION:-}
+VIDEO=${VIDEO:-$REPO_ROOT/playground/demo/xU25MMA2N4aVtYay.mp4}
+DEVICE=${DEVICE:-cuda:0}
+FRAMES=${FRAMES:-8}
+MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-32}
+SELECTION=${SELECTION:-fixed}
 
+ARGS=(
+    --pretrained "$PRETRAIN"
+    --video "$VIDEO"
+    --device "$DEVICE"
+    --frames "$FRAMES"
+    --max-new-tokens "$MAX_NEW_TOKENS"
+    --selection "$SELECTION"
+)
+if [[ -n "$REVISION" ]]; then
+    ARGS+=(--revision "$REVISION")
+fi
+ARGS+=("$@")
 
-# run vqtoken
-CUDA_VISIBLE_DEVICES=2 accelerate launch --num_processes=1 --main_process_port 29509 \
--m lmms_eval \
---model llava_onevision_vqtoken \
---model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen \
---tasks activitynetqa --batch_size 1 \
---log_samples \
---log_samples_suffix llava_onevision \
---output_path ./logs_new/ 
-
-# baseline - llava-onevision
-# CUDA_VISIBLE_DEVICES=0 accelerate launch --num_processes=1 --main_process_port 29509 \
-# -m lmms_eval \
-# --model llava_onevision \
-# --model_args pretrained=$PRETRAIN,conv_template=qwen_1_5,model_name=llava_qwen \
-# --tasks nextqa_mc_test --batch_size 1 \
-# --log_samples \
-# --log_samples_suffix llava_onevision \
-# --output_path ./logs_new/  
+python scripts/smoke_inference.py "${ARGS[@]}"

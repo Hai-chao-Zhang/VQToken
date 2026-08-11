@@ -1,101 +1,101 @@
-export WANDB_API_KEY="your_wandb_key"
-export WANDB_ENTITY=zhang-haich-northeastern-university
-export WANDB_PROJECT=llavanext
-export WANDB_MODE=online
-export PYTHONWARNINGS="ignore"
+#!/usr/bin/env bash
+set -euo pipefail
 
-export HF_HOME="your huggingface cache dir"
-export OPENAI_API_KEY="your OPENAI_API_KEY here"
-export HF_TOKEN="your huggingface key here"
-export HF_HUB_ENABLE_HF_TRANSFER=1
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "$REPO_ROOT"
 
-export PYTHONPATH="${PYTHONPATH}:./tmp/LLaVa-Video/LLaVA-NeXT"
+: "${DATA_YAML:?Set DATA_YAML to a prepared LLaVA training-mixture YAML file}"
+: "${IMAGE_FOLDER:?Set IMAGE_FOLDER to the image dataset root}"
+: "${VIDEO_FOLDER:?Set VIDEO_FOLDER to the video dataset root}"
 
+for required_path in "$DATA_YAML" "$IMAGE_FOLDER" "$VIDEO_FOLDER"; do
+    if [[ ! -e "$required_path" ]]; then
+        printf 'Required path does not exist: %s\n' "$required_path" >&2
+        exit 2
+    fi
+done
 
+PRETRAINED_MODEL=${PRETRAINED_MODEL:-lmms-lab/llava-onevision-qwen2-0.5b-ov}
+VISION_MODEL=${VISION_MODEL:-google/siglip-so400m-patch14-384}
+CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+MASTER_PORT=${MASTER_PORT:-30017}
+RUN_NAME=${RUN_NAME:-vqtoken-onevision-qwen2-0.5b}
+OUTPUT_DIR=${OUTPUT_DIR:-$REPO_ROOT/outputs/$RUN_NAME}
+LOG_DIR=${LOG_DIR:-$REPO_ROOT/trlogs}
+REPORT_TO=${REPORT_TO:-none}
+TORCH_COMPILE=${TORCH_COMPILE:-false}
+USE_EMBEDDED_VISION=${USE_EMBEDDED_VISION:-true}
 
-IMAGE_FOLDER="/your_dataset_dir/llava_ov/images"
-VIDEO_FOLDER="/your_dataset_dir/LLaVA-Video-178K/video/"
-DATA_YAML="./tmp/LLaVa-Video/LLaVA-NeXT/scripts/video/train/datasets.yaml" # e.g exp.yaml
+IFS=',' read -r -a GPU_LIST <<< "$CUDA_VISIBLE_DEVICES"
+NUM_GPUS=${#GPU_LIST[@]}
+if (( NUM_GPUS < 1 )); then
+    printf 'CUDA_VISIBLE_DEVICES must name at least one GPU\n' >&2
+    exit 2
+fi
 
+command -v deepspeed >/dev/null || {
+    printf 'deepspeed is not installed; run: pip install -e ".[train]"\n' >&2
+    exit 2
+}
 
-LLM_VERSION="Qwen/Qwen2-7B-Instruct" 
-LLM_VERSION_CLEAN="${LLM_VERSION//\//_}"
-VISION_MODEL_VERSION="google/siglip-so400m-patch14-384"
-VISION_MODEL_VERSION_CLEAN="${VISION_MODEL_VERSION//\//_}"
+mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
+export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-1}
 
-############### Pretrain ################
+printf 'Model: %s\nOutput: %s\nGPUs: %s\n' "$PRETRAINED_MODEL" "$OUTPUT_DIR" "$CUDA_VISIBLE_DEVICES"
 
-BASE_RUN_NAME="llavanext-google_siglip-so400m-patch14-384-Qwen_Qwen2-7B-Instruct-mlp2x_gelu-pretrain_blip558k_plain"
-echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
-
-############### Finetune ################
-
-# Stage 2
-PROMPT_VERSION="qwen_1_5"
-RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-ov_stage_am9-1e-6lr-all-model" 
-# PREV_STAGE_CHECKPOINT="./tmp/llm/llava-onevision-qwen2-0.5b-ov"
-# PREV_STAGE_CHECKPOINT="./tmp/LLaVa-Video/ckpt/llava-onevision-google_siglip-so400m-patch14-384-Qwen_Qwen2-7B-Instruct-ov_stage_am9-1e-6lr-all-model/checkpoint-15000"
-FOLDER="./tmp/LLaVa-Video/ckpt/llava-onevision-google_siglip-so400m-patch14-384-Qwen_Qwen2-7B-Instruct-ov_stage_am9-1e-6lr-all-model/"
-ck=$(ls $FOLDER)
-PREV_STAGE_CHECKPOINT=$FOLDER$ck
-
-echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
-echo "MID_RUN_NAME: ${RUN_NAME}"
-
-# ACCELERATE_CPU_AFFINITY=1 torchrun --nnodes="${NNODES}" --node_rank="${RANK}" --nproc_per_node="${NUM_GPUS}"   --master_addr="${ADDR}" --master_port="${PORT}" 
-
-# ACCELERATE_CPU_AFFINITY=1 torchrun --nproc_per_node=8 --master_port 30000 \
-# deepspeed --master_port 30000 --include localhost:4,5,6,7 \
-# ACCELERATE_CPU_AFFINITY=1 CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 --master_port 30000 \
-# --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,cross_attention,mm_language_model" --lora_enable True \
-# plan to use 1e-7 next time
-deepspeed --master_port 30017 --include localhost:4,5,6,7 \
+CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" deepspeed \
+    --master_port "$MASTER_PORT" \
+    --num_gpus "$NUM_GPUS" \
     llava/train/train_mem.py \
     --deepspeed scripts/zero2.json \
-    --model_name_or_path $PREV_STAGE_CHECKPOINT \
-    --version $PROMPT_VERSION \
-    --data_path $DATA_YAML \
-    --image_folder $IMAGE_FOLDER \
-    --video_folder $VIDEO_FOLDER \
-    --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,cross_attention,mm_language_model" \
-    --cross_attention_lr 1e-6 \
+    --model_name_or_path "$PRETRAINED_MODEL" \
+    --version qwen_1_5 \
+    --data_path "$DATA_YAML" \
+    --image_folder "$IMAGE_FOLDER" \
+    --video_folder "$VIDEO_FOLDER" \
+    --use_vqtoken true \
+    --use_embedded_vision "$USE_EMBEDDED_VISION" \
+    --vqtoken_mode centroids \
+    --vqtoken_selection_method fixed \
+    --vqtoken_min_clusters 12 \
+    --vqtoken_max_clusters 32 \
+    --mm_tunable_parts "mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr 2e-6 \
-    --vision_tower ${VISION_MODEL_VERSION} \
+    --vision_tower "$VISION_MODEL" \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
-    --mm_use_im_start_end False \
-    --mm_use_im_patch_token False \
-    --group_by_modality_length True \
+    --mm_use_im_start_end false \
+    --mm_use_im_patch_token false \
+    --group_by_modality_length true \
     --image_aspect_ratio anyres_max_9 \
-    --image_grid_pinpoints  "(1x1),...,(6x6)" \
+    --image_grid_pinpoints "(1x1),...,(6x6)" \
     --mm_patch_merge_type spatial_unpad \
-    --bf16 True \
-    --run_name $RUN_NAME \
-    --output_dir ./tmp/LLaVa-Video/ckpt/$RUN_NAME \
+    --mm_newline_position one_token \
+    --attn_implementation sdpa \
+    --bf16 true \
+    --run_name "$RUN_NAME" \
+    --output_dir "$OUTPUT_DIR" \
     --num_train_epochs 1 \
     --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
-    --evaluation_strategy "no" \
-    --save_strategy "steps" \
+    --evaluation_strategy no \
+    --save_strategy steps \
     --save_steps 500 \
     --save_total_limit 1 \
     --learning_rate 1e-5 \
-    --weight_decay 0. \
+    --weight_decay 0 \
     --warmup_ratio 0.03 \
-    --lr_scheduler_type "cosine" \
+    --lr_scheduler_type cosine \
     --logging_steps 1 \
-    --tf32 True \
+    --tf32 true \
     --model_max_length 32768 \
-    --gradient_checkpointing True \
+    --gradient_checkpointing true \
     --dataloader_num_workers 4 \
-    --lazy_preprocess True \
-    --report_to wandb \
-    --torch_compile True \
-    --torch_compile_backend "inductor" \
-    --dataloader_drop_last True \
+    --lazy_preprocess true \
+    --report_to "$REPORT_TO" \
+    --torch_compile "$TORCH_COMPILE" \
+    --dataloader_drop_last true \
     --frames_upbound 32 \
-    --mm_newline_position one_token >> trlogs/log.txt
-exit 0;
-
-# You can delete the sdpa attn_implementation if you want to use flash attn
+    2>&1 | tee "$LOG_DIR/$RUN_NAME.log"

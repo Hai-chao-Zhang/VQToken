@@ -1,103 +1,87 @@
+"""Cross-attention used by the optional learned VQToken compression path."""
+
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-# from VQToken.vq_token import kmeans_clustering_tokens_torch
-
-
 
 
 class VQAttn(nn.Module):
-    def __init__(self, query_dim, context_dim, num_heads=1, num_layers=1):
-        super(VQAttn, self).__init__()
+    def __init__(self, query_dim: int, context_dim: int, num_heads: int = 1, num_layers: int = 1):
+        super().__init__()
+        if query_dim < 1 or context_dim < 1:
+            raise ValueError("query_dim and context_dim must be positive")
+        if context_dim % num_heads != 0:
+            raise ValueError("context_dim must be divisible by num_heads")
+
         self.query_dim = query_dim
         self.context_dim = context_dim
-        
-        # Transformer cross-attention setup
-        decoder_layer = nn.TransformerDecoderLayer(d_model=context_dim, nhead=num_heads)
-        self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
-        
-        # Linear layer to match the input dimension of the query
         self.to_q_proj = nn.Linear(query_dim, context_dim)
-        
-        # Initialize weights
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=context_dim,
+            nhead=num_heads,
+            batch_first=True,
+        )
+        self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
         self.initialize_weights()
 
-    def initialize_weights(self):
+    def initialize_weights(self) -> None:
+        # Keep normalization scales at one. The previous implementation reset
+        # them to values near zero, which effectively suppressed fresh models.
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                if module.weight is not None and module.weight.numel() > 0:
-                    nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None and module.bias.numel() > 0:
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
                     nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.TransformerDecoder):
-                for name, param in module.named_parameters():
-                    if param.numel() > 0:  # Avoid zero-dimensional parameters
-                        if param.dim() > 1:
-                            nn.init.xavier_uniform_(param)
-                        elif param.dim() == 1 and 'bias' in name:
-                            nn.init.zeros_(param)
-                        elif param.dim() == 1:
-                            nn.init.uniform_(param, -0.01, 0.01)
+            elif isinstance(module, nn.LayerNorm):
+                if module.weight is not None:
+                    nn.init.ones_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
 
-    def forward(self, x, context):
-        # Project x to match context dimensions and permute for transformer requirements
-        if x.numel() == 0 or context.numel() == 0:
-            raise ValueError("Zero-sized tensor detected in forward pass.")
+    def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
+        """Attend from ``[B, Lq, query_dim]`` to ``[B, Lc, context_dim]``."""
 
-        x = self.to_q_proj(x).permute(1, 0, 2)  # [seq_len_q, batch_size, context_dim]
-        context = context.permute(1, 0, 2)      # [seq_len_kv, batch_size, context_dim]
-
-        # Perform transformer-based cross-attention
-        try:
-            output = self.transformer_decoder(tgt=x, memory=context)
-        except AssertionError as e:
-            print(f"Error in TransformerDecoder: {e}")
-            raise
-
-        return output.permute(1, 0, 2)  # Reshape back to [batch_size, seq_len_q, query_dim]
-
-    def cross_attention_weighted_clusters(self, x, context):
-        """
-        Cross-attend from token indices to a discrete codebook and return
-        attention-weighted code vectors.
-
-        Args:
-            x (torch.Tensor):
-                Discrete token indices (integer dtype, e.g., torch.long).
-                Shape: [B, Lq] or [Lq] (interpreted as B=1).
-            context (torch.Tensor):
-                Discrete token codebook of shape [K, D], where K is the code count
-                and D is the code embedding dimension. Optionally [B, Lc, D] for
-                a batched/sequence context.
-
-        Returns:
-            weighted_clusters (torch.Tensor):
-                Attention-weighted code representations.
-                Shape: [B, Lq, D] (or [Lq, D] if B collapses to 1).
-
-        Notes:
-            - If x are raw indices, ensure they are embedded to vectors compatible
-              with the decoder dimension before cross-attention (or supply a
-              context that already provides the corresponding code vectors).
-            - When batch sizes differ between x and context, the smaller batch is
-              internally repeated to match the larger one.
-        """
-
-
-        # Ensure both tensors have the same batch size
+        if x.ndim != 3 or context.ndim != 3:
+            raise ValueError("x and context must both be 3D tensors")
         if x.shape[0] != context.shape[0]:
-            if x.shape[0] < context.shape[0]:
-                # Repeat x to match the size of context
-                repeat_count = (context.shape[0] // x.shape[0])+1  # Ceiling division
-                x = x.repeat(repeat_count, 1)[:context.shape[0], ...]  # Repeat and trim
+            raise ValueError("x and context must have the same batch size")
+        if x.shape[-1] != self.query_dim or context.shape[-1] != self.context_dim:
+            raise ValueError(
+                f"expected trailing dimensions {self.query_dim} and {self.context_dim}, "
+                f"got {x.shape[-1]} and {context.shape[-1]}"
+            )
+        if x.shape[1] == 0 or context.shape[1] == 0:
+            raise ValueError("x and context sequences must be non-empty")
+
+        projected_query = self.to_q_proj(x)
+        return self.transformer_decoder(tgt=projected_query, memory=context)
+
+    def cross_attention_weighted_clusters(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
+        """Cross-attend assignment-map features to a discrete codebook.
+
+        Two-dimensional inputs represent unbatched sequences and are promoted
+        to batch size one. A batched tensor can be paired with an unbatched
+        tensor, which is expanded across the batch. Different non-singleton
+        batch sizes are rejected instead of repeating sequence rows.
+        """
+
+        if x.ndim not in (2, 3) or context.ndim not in (2, 3):
+            raise ValueError("x and context must be 2D or 3D tensors")
+        squeeze_batch = x.ndim == 2 and context.ndim == 2
+
+        if x.ndim == 2:
+            x = x.unsqueeze(0)
+        if context.ndim == 2:
+            context = context.unsqueeze(0)
+
+        if x.shape[0] != context.shape[0]:
+            if x.shape[0] == 1:
+                x = x.expand(context.shape[0], -1, -1)
+            elif context.shape[0] == 1:
+                context = context.expand(x.shape[0], -1, -1)
             else:
-                # Repeat context to match the size of x
-                repeat_count = (x.shape[0] // context.shape[0])+1  # Ceiling division
-                context = context.repeat(repeat_count, 1)[:x.shape[0], ...]  # Repeat and trim
+                raise ValueError("x and context batch sizes must match, or one must be 1")
 
-        x_in, context_in = x.unsqueeze(0), context.unsqueeze(0)
-        # Apply VQAttention
-        weighted_clusters = self.forward(x_in, context_in)
-        
-        return weighted_clusters.squeeze(0)  # Remove the batch dimension
-
+        output = self.forward(x, context)
+        return output.squeeze(0) if squeeze_batch else output

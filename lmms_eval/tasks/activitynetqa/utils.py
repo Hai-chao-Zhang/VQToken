@@ -12,7 +12,6 @@ import requests
 import yaml
 from decord import VideoReader, cpu
 from loguru import logger as eval_logger
-from openai import OpenAI
 
 import lmms_eval.tasks._task_utils.file_utils as file_utils
 
@@ -28,21 +27,23 @@ with open(Path(__file__).parent / "_default_template_yaml", "r") as f:
 
 NUM_SECONDS_TO_SLEEP = 5
 
-GPT_EVAL_MODEL_NAME = config["metadata"]["gpt_eval_model_name"]
-GPT_EVAL_MODEL_NAME = "gpt-3.5-turbo"
+GPT_EVAL_MODEL_NAME = os.getenv(
+    "OPENAI_MODEL",
+    config["metadata"]["gpt_eval_model_name"],
+)
 
 API_TYPE = os.getenv("API_TYPE", "openai")
 
 if API_TYPE == "openai":
     API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
-    API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_API_KEY")
+    API_KEY = os.getenv("OPENAI_API_KEY")
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {API_KEY or ''}",
         "Content-Type": "application/json",
     }
 
 # Unzip all the zip files to HF HOME cache dir
-HF_HOME = os.environ["HF_HOME"]
+HF_HOME = os.getenv("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
 cache_dir = config["dataset_kwargs"]["cache_dir"]
 cache_dir = os.path.join(HF_HOME, cache_dir)
 cache_dir = os.path.join(cache_dir, "all_test")
@@ -93,11 +94,7 @@ def activitynetqa_doc_to_answer(doc):
 
 import os
 import openai
-from openai import OpenAI
 import time
-
-# Initialize the OpenAI client
-client = OpenAI()
 
 
 
@@ -202,6 +199,11 @@ def initialize_openai_client(api_version=GPT_EVAL_MODEL_NAME):
 def get_eval(question, answer, pred, max_tokens: int, retries: int = 5):
     global headers
 
+    if API_TYPE != "openai":
+        raise ValueError(f"Unsupported API_TYPE for ActivityNetQA judge: {API_TYPE!r}")
+    if not API_KEY:
+        raise ValueError("OPENAI_API_KEY is required to run the ActivityNetQA GPT judge")
+
     messages = [
         {
             "role": "system",
@@ -222,7 +224,7 @@ def get_eval(question, answer, pred, max_tokens: int, retries: int = 5):
             "Provide your evaluation only as a yes/no and score where the score is an integer value between 0 and 5, with 5 indicating the highest meaningful match. "
             "Please generate the response in the form of a Python dictionary string with keys 'pred' and 'score', where value of 'pred' is  a string of 'yes' or 'no' and value of 'score' is in INTEGER, not STRING."
             "DO NOT PROVIDE ANY OTHER OUTPUT TEXT OR EXPLANATION. Only provide the Python dictionary string. "
-            "For example, your response should look like this: {'pred': 'yes', 'score': 4.8}.",
+            "For example, your response should look like this: {'pred': 'yes', 'score': 4}.",
         },
     ]
 
@@ -233,6 +235,7 @@ def get_eval(question, answer, pred, max_tokens: int, retries: int = 5):
         "max_tokens": max_tokens,
     }
 
+    last_error = "empty response"
     for attempt in range(retries):
         try:
             response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
@@ -247,21 +250,26 @@ def get_eval(question, answer, pred, max_tokens: int, retries: int = 5):
                 return content, response_data["model"]
         # Handle HTTP errors separately
         except requests.exceptions.HTTPError as e:
+            last_error = str(e)
             eval_logger.error(f"HTTP error on attempt {attempt + 1}: {e}")
         # Handle other requests-related errors
         except requests.exceptions.RequestException as e:
+            last_error = str(e)
             eval_logger.error(f"Request exception on attempt {attempt + 1}: {e}")
         except Exception as e:
+            last_error = str(e)
             eval_logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
 
         # Handle other unexpected errors
         if attempt < retries - 1:
             time.sleep(NUM_SECONDS_TO_SLEEP)
-        else:  # If this was the last attempt, log and return empty
-            eval_logger.error(f"All {retries} attempts failed. Last error message: {e}")
-            return "", ""
+        else:
+            eval_logger.error(f"All {retries} attempts failed. Last error message: {last_error}")
+            raise RuntimeError(
+                f"ActivityNetQA judge failed after {retries} attempts: {last_error}"
+            )
 
-    return "", ""
+    raise RuntimeError("ActivityNetQA judge returned no usable response")
 
 
 def parse_score(review):
@@ -269,23 +277,16 @@ def parse_score(review):
         # Convert the string representation of a dictionary to an actual dictionary
         review = "{" + review.split("{")[1].split("}")[0] + "}"
         review_dict = ast.literal_eval(review)
-        # import pdb;pdb.set_trace()
-        score_match = review_dict["score"]
-        score = int(score_match)
-        pred = review_dict["pred"]
-        if "yes" in pred.lower():
-            pred = "yes"
-        elif "no" in pred.lower():
-            pred = "no"
-        # pred = review_dict.get("pred", "no")
-        # score = review_dict.get("score", 0)
-        return [pred, score]
-    except SyntaxError as e:
-        eval_logger.error(f"Syntax error parsing the review string: {e}. Review content: {review}")
-    except ValueError as e:
-        eval_logger.error(f"Value error parsing the review string: {e}. Review content: {review}")
-    except Exception as e:
-        eval_logger.error(f"Unexpected error parsing the review string: {e}. Review content: {review}")
+        raw_score = review_dict["score"]
+        pred = str(review_dict["pred"]).strip().lower()
+    except (IndexError, KeyError, SyntaxError, TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid ActivityNetQA judge response: {review!r}") from exc
+
+    if pred not in {"yes", "no"}:
+        raise ValueError(f"ActivityNetQA judge returned invalid pred: {pred!r}")
+    if isinstance(raw_score, bool) or not isinstance(raw_score, int) or not 0 <= raw_score <= 5:
+        raise ValueError(f"ActivityNetQA judge returned invalid score: {raw_score!r}")
+    return [pred, raw_score]
 
 
 def activitynetqa_process_results(doc, result):
@@ -296,19 +297,14 @@ def activitynetqa_process_results(doc, result):
     Returns:
         a dictionary
     """
-    try:
-        question = doc["question"]
-        answer = doc["answer"]
-        pred = result[0]
+    question = doc["question"]
+    answer = doc["answer"]
+    pred = result[0]
 
-        # Assume get_eval returns a review and the model name, and parse_score parses this review
-        review, model_name = get_eval(question, answer, pred, 64)
-        scores = parse_score(review)
-    except Exception as e:
-        eval_logger.error(f"Error for Question ID: {doc.get('question_id', 'Unknown')}: {e}")
-        review = "Failed to Get a Proper Review."
-        model_name = "Failed Request"
-        scores = ["no", 0]
+    # Judge failures must abort evaluation instead of becoming plausible-looking
+    # zero scores that could be mistaken for model results.
+    review, _ = get_eval(question, answer, pred, 64)
+    scores = parse_score(review)
 
     return {
         "gpt_eval_score": {"video_name": doc["video_name"], "question": doc["question"], "answer": doc["answer"], "pred": pred, "question_id": doc["question_id"], "type": doc["type"], "Correctness": scores[0], "score": scores[1]},
@@ -330,19 +326,12 @@ def activitynetqa_gpt_eval(results, args):
 
     # Process each result to generate scores
     for data_dict in results:
-        try:
-            question = data_dict.get("Q", "")
-            answer = data_dict.get("A", "")
-            pred = data_dict.get("pred", "")
+        question = data_dict.get("Q", "")
+        answer = data_dict.get("A", "")
+        pred = data_dict.get("pred", "")
 
-            # Assume get_eval returns a review and the model name, and parse_score parses this review
-            review, model_name = get_eval(question, answer, pred, 64)
-            scores = parse_score(review)
-        except Exception as e:
-            eval_logger.error(f"Error for Question ID: {data_dict.get('question_id', 'Unknown')}: {e}")
-            review = "Failed to Get a Proper Review."
-            model_name = "Failed Request"
-            scores = ["no", 0]
+        review, _ = get_eval(question, answer, pred, 64)
+        scores = parse_score(review)
 
         # Update the dictionary with the new entries
         updated_dict = {"video_name": data_dict["video_name"], "Correctness": scores[0], "score": scores[1], "Q": question, "A": answer, "pred": pred, "question_id": data_dict.get("question_id"), "type": data_dict.get("type")}
