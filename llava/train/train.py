@@ -1366,10 +1366,10 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
         overwrite_config["use_embedded_vision"] = True
 
     if model_args.use_vqtoken:
-        if model_args.vqtoken_mode != "centroids":
+        if model_args.vqtoken_mode not in {"centroids", "attention"}:
             raise ValueError(
                 f"Unsupported vqtoken_mode: {model_args.vqtoken_mode!r}; "
-                "the audited public path currently supports only centroids"
+                "expected 'centroids' or 'attention'"
             )
         if model_args.vqtoken_selection_method not in {"fixed", "elbow", "silhouette"}:
             raise ValueError(f"Unsupported vqtoken_selection_method: {model_args.vqtoken_selection_method}")

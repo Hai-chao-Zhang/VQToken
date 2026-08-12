@@ -31,6 +31,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frames", type=int, default=8)
     parser.add_argument("--max-new-tokens", type=int, default=32)
     parser.add_argument("--prompt", default="Describe what happens in this video in one sentence.")
+    parser.add_argument(
+        "--mode",
+        choices=["centroids", "attention"],
+        default=None,
+        help="Compression path. Defaults to attention for the released VQToken checkpoint and centroids otherwise.",
+    )
     parser.add_argument("--selection", choices=["fixed", "elbow", "silhouette"], default="fixed")
     return parser.parse_args()
 
@@ -110,12 +116,17 @@ def main() -> None:
     from llava.conversation import conv_templates
     from llava.mm_utils import tokenizer_image_token
     from llava.model.builder import load_pretrained_model
+    from VQToken import has_released_vq_attention_weights
 
     if not args.device.startswith("cuda") or not torch.cuda.is_available():
         raise RuntimeError("This full-model smoke test requires an available CUDA GPU")
 
     torch.manual_seed(0)
     model_path = resolve_model(args.pretrained, args.revision)
+    has_attention = has_released_vq_attention_weights(model_path)
+    mode = args.mode or ("attention" if has_attention else "centroids")
+    if mode == "attention" and not has_attention:
+        raise RuntimeError("--mode attention requires a checkpoint with released VQ-Attention weights")
     embedded_vision = has_embedded_vision_weights(model_path)
     tokenizer, model, image_processor, _ = load_pretrained_model(
         model_path,
@@ -127,7 +138,7 @@ def main() -> None:
         multimodal=True,
         overwrite_config={
             "use_vqtoken": True,
-            "vqtoken_mode": "centroids",
+            "vqtoken_mode": mode,
             "vqtoken_selection_method": args.selection,
             "vqtoken_min_clusters": 12,
             "vqtoken_max_clusters": 32,
@@ -169,6 +180,7 @@ def main() -> None:
     print(f"model={args.pretrained}")
     print(f"revision={args.revision or KNOWN_REVISIONS.get(args.pretrained, 'local/default')}")
     print(f"frames={frames_np.shape[0]}")
+    print(f"vqtoken_mode={mode}")
     print(f"embedded_vision={embedded_vision}")
     print(f"output={output}")
 

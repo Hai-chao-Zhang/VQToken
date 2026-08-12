@@ -125,8 +125,9 @@ python -m pip install "llava[runtime] @ git+https://github.com/Hai-chao-Zhang/VQ
 ```
 
 The runtime advertises its supported public integration surface through
-`VQToken.VQTOKEN_CAPABILITIES`: centroid codebooks with `fixed`, `elbow`, or
-`silhouette` cluster-count selection. The vendored evaluator and training code
+`VQToken.VQTOKEN_CAPABILITIES`: the released learned VQ-Attention path and the
+centroid-only ablation, each with `fixed`, `elbow`, or `silhouette`
+cluster-count selection. The vendored evaluator and training code
 remain available when running from the repository root, but are not installed
 into another project's environment or included in the source distribution.
 
@@ -163,6 +164,12 @@ PRETRAIN=haichaozhang/VQ-Token-llava-ov-0.5b \
 CUDA_VISIBLE_DEVICES=0 \
 bash test_vqtoken_0.5b.sh
 ```
+
+The smoke script selects `attention` automatically for the released VQToken
+checkpoint. Use `--mode centroids` only when intentionally running the
+codebook-only ablation. Attention mode also preserves the checkpoint-era
+cluster-ID convention; centroid-only inference retains deterministic
+canonicalized IDs.
 
 The script pins known model revisions, downloads only inference artifacts (not
 optimizer states), and reuses the SigLIP weights embedded in compatible

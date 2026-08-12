@@ -62,8 +62,12 @@ class VQAttn(nn.Module):
 
         Two-dimensional inputs represent unbatched sequences and are promoted
         to batch size one. A batched tensor can be paired with an unbatched
-        tensor, which is expanded across the batch. Different non-singleton
-        batch sizes are rejected instead of repeating sequence rows.
+        tensor, which is expanded across the batch. The shorter of the
+        assignment-map and codebook sequences is then repeated to the longer
+        sequence length. This preserves the alignment used to train the
+        released checkpoint. With the supported deployment invariant
+        ``num_frames <= codebook_size``, the output has one token per codebook
+        entry.
         """
 
         if x.ndim not in (2, 3) or context.ndim not in (2, 3):
@@ -82,6 +86,17 @@ class VQAttn(nn.Module):
                 context = context.expand(x.shape[0], -1, -1)
             else:
                 raise ValueError("x and context batch sizes must match, or one must be 1")
+
+        query_length, codebook_length = x.shape[1], context.shape[1]
+        if query_length == 0 or codebook_length == 0:
+            raise ValueError("x and context sequences must be non-empty")
+        target_length = max(query_length, codebook_length)
+        if query_length < target_length:
+            repeats = (target_length + query_length - 1) // query_length
+            x = x.repeat(1, repeats, 1)[:, :target_length, :]
+        if codebook_length < target_length:
+            repeats = (target_length + codebook_length - 1) // codebook_length
+            context = context.repeat(1, repeats, 1)[:, :target_length, :]
 
         output = self.forward(x, context)
         return output.squeeze(0) if squeeze_batch else output

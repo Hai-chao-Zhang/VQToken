@@ -16,7 +16,14 @@ class KMeansTorch:
     accumulation are both inaccurate.
     """
 
-    def __init__(self, num_clusters: int, max_iteration: int = 300, tol: float = 1e-4, seed: int | None = 0):
+    def __init__(
+        self,
+        num_clusters: int,
+        max_iteration: int = 300,
+        tol: float = 1e-4,
+        seed: int | None = 0,
+        canonicalize: bool = True,
+    ):
         if isinstance(num_clusters, bool) or not isinstance(num_clusters, int) or num_clusters < 1:
             raise ValueError("num_clusters must be a positive integer")
         if isinstance(max_iteration, bool) or not isinstance(max_iteration, int) or max_iteration < 1:
@@ -25,11 +32,14 @@ class KMeansTorch:
             raise ValueError("tol must be non-negative")
         if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
             raise ValueError("seed must be an integer or None")
+        if not isinstance(canonicalize, bool):
+            raise TypeError("canonicalize must be a bool")
 
         self.num_clusters = num_clusters
         self.max_iteration = max_iteration
         self.tol = float(tol)
         self.seed = seed
+        self.canonicalize = canonicalize
         self.centroids: torch.Tensor | None = None
 
     def _validate_input(self, X: torch.Tensor) -> torch.Tensor:
@@ -129,7 +139,8 @@ class KMeansTorch:
 
         # Labels must correspond to the final (possibly just-updated) centers.
         labels = self.find_clusters_index(self.compute_cosine_distances(X, self.centroids))
-        labels = self._canonicalize_clusters(labels)
+        if self.canonicalize:
+            labels = self._canonicalize_clusters(labels)
         return labels, self.centroids
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
@@ -156,6 +167,7 @@ class AdaptiveKMeansTorch:
         tol: float = 1e-4,
         min_clusters: int = 12,
         seed: int | None = 0,
+        canonicalize: bool = True,
     ):
         if isinstance(min_clusters, bool) or not isinstance(min_clusters, int) or min_clusters < 1:
             raise ValueError("min_clusters must be a positive integer")
@@ -165,6 +177,8 @@ class AdaptiveKMeansTorch:
             raise ValueError(f"method must be one of {sorted(self.SUPPORTED_METHODS)}, got {method!r}")
         if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
             raise ValueError("seed must be an integer or None")
+        if not isinstance(canonicalize, bool):
+            raise TypeError("canonicalize must be a bool")
 
         self.min_clusters = min_clusters
         self.max_clusters = max_clusters
@@ -172,6 +186,7 @@ class AdaptiveKMeansTorch:
         self.max_iteration = max_iteration
         self.tol = tol
         self.seed = seed
+        self.canonicalize = canonicalize
         self.best_K: int | None = None
         self.centroids: torch.Tensor | None = None
         self._best_labels: torch.Tensor | None = None
@@ -182,6 +197,7 @@ class AdaptiveKMeansTorch:
             max_iteration=self.max_iteration,
             tol=self.tol,
             seed=self.seed,
+            canonicalize=self.canonicalize,
         )
         return kmeans.fit(X)
 

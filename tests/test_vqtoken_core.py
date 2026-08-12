@@ -124,7 +124,20 @@ def test_kmeans_initialization_is_reproducible_by_default():
     torch.testing.assert_close(centers_a, centers_b)
 
 
-def test_vq_attention_preserves_sequence_axes():
+def test_kmeans_can_preserve_checkpoint_era_cluster_ids(monkeypatch):
+    model = KMeansTorch(num_clusters=2, canonicalize=False)
+
+    def fail_if_called(_labels):
+        raise AssertionError("canonicalization must remain disabled")
+
+    monkeypatch.setattr(model, "_canonicalize_clusters", fail_if_called)
+    labels, centers = model.fit(torch.randn(8, 4))
+
+    assert labels.shape == (8,)
+    assert centers.shape == (2, 4)
+
+
+def test_vq_attention_preserves_longer_assignment_sequence():
     torch.manual_seed(2)
     module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
     query = torch.randn(7, 5)
@@ -136,6 +149,40 @@ def test_vq_attention_preserves_sequence_axes():
 
     batched = module.cross_attention_weighted_clusters(query.unsqueeze(0).expand(2, -1, -1), codebook)
     assert batched.shape == (2, 7, 8)
+
+
+def test_vq_attention_repeats_short_codebook_to_match_assignment_map():
+    module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
+
+    output = module.cross_attention_weighted_clusters(
+        torch.randn(7, 5),
+        torch.randn(3, 8),
+    )
+
+    assert output.shape == (7, 8)
+
+
+def test_vq_attention_repeats_short_assignment_maps_to_the_codebook_budget():
+    module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
+
+    output = module.cross_attention_weighted_clusters(
+        torch.randn(2, 5),
+        torch.randn(5, 8),
+    )
+
+    assert output.shape == (5, 8)
+
+
+@pytest.mark.parametrize("codebook_size", [12, 32, 64])
+def test_released_attention_shape_tracks_the_requested_budget(codebook_size):
+    module = VQAttn(query_dim=729, context_dim=896, num_heads=8)
+
+    output = module.cross_attention_weighted_clusters(
+        torch.randn(8, 729),
+        torch.randn(codebook_size, 896),
+    )
+
+    assert output.shape == (codebook_size, 896)
 
 
 def test_vq_attention_initializes_layer_norm_scales_to_one():
@@ -150,3 +197,16 @@ def test_vq_attention_rejects_incompatible_batches():
     module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
     with pytest.raises(ValueError, match="batch sizes"):
         module.cross_attention_weighted_clusters(torch.randn(2, 4, 5), torch.randn(3, 6, 8))
+
+
+@pytest.mark.parametrize(
+    ("query", "codebook"),
+    [
+        (torch.empty(0, 5), torch.randn(3, 8)),
+        (torch.randn(3, 5), torch.empty(0, 8)),
+    ],
+)
+def test_vq_attention_rejects_empty_sequences(query, codebook):
+    module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
+    with pytest.raises(ValueError, match="non-empty"):
+        module.cross_attention_weighted_clusters(query, codebook)
