@@ -38,17 +38,38 @@ def test_embedded_vision_detection_is_safe_for_unknown_paths(tmp_path):
 
 def test_released_attention_detection_from_safetensors_index(tmp_path):
     keys = {
+        "model.cross_attention.to_q_proj.bias",
         "model.cross_attention.to_q_proj.weight",
+        "model.cross_attention.transformer_decoder.layers.0.linear1.bias",
+        "model.cross_attention.transformer_decoder.layers.0.linear1.weight",
+        "model.cross_attention.transformer_decoder.layers.0.linear2.bias",
+        "model.cross_attention.transformer_decoder.layers.0.linear2.weight",
+        "model.cross_attention.transformer_decoder.layers.0.multihead_attn.in_proj_bias",
         "model.cross_attention.transformer_decoder.layers.0.self_attn.in_proj_weight",
         "model.cross_attention.transformer_decoder.layers.0.multihead_attn.in_proj_weight",
+        "model.cross_attention.transformer_decoder.layers.0.multihead_attn.out_proj.bias",
+        "model.cross_attention.transformer_decoder.layers.0.multihead_attn.out_proj.weight",
+        "model.cross_attention.transformer_decoder.layers.0.norm1.bias",
+        "model.cross_attention.transformer_decoder.layers.0.norm1.weight",
+        "model.cross_attention.transformer_decoder.layers.0.norm2.bias",
+        "model.cross_attention.transformer_decoder.layers.0.norm2.weight",
+        "model.cross_attention.transformer_decoder.layers.0.norm3.bias",
         "model.cross_attention.transformer_decoder.layers.0.norm3.weight",
+        "model.cross_attention.transformer_decoder.layers.0.self_attn.in_proj_bias",
+        "model.cross_attention.transformer_decoder.layers.0.self_attn.out_proj.bias",
+        "model.cross_attention.transformer_decoder.layers.0.self_attn.out_proj.weight",
     }
-    keys.update(f"model.cross_attention.placeholder_{index}" for index in range(16))
     (tmp_path / "model.safetensors.index.json").write_text(
         json.dumps({"weight_map": {key: "model.safetensors" for key in keys}})
     )
 
     assert has_released_vq_attention_weights(str(tmp_path)) is True
+
+    keys.add("model.cross_attention.unexpected.weight")
+    (tmp_path / "model.safetensors.index.json").write_text(
+        json.dumps({"weight_map": {key: "model.safetensors" for key in keys}})
+    )
+    assert has_released_vq_attention_weights(str(tmp_path)) is False
 
 
 def test_released_attention_detection_fails_closed(tmp_path):

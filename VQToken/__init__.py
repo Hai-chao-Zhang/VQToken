@@ -10,10 +10,26 @@ VQTOKEN_CAPABILITIES = {
 }
 
 _RELEASED_ATTENTION_KEYS = {
+    "model.cross_attention.to_q_proj.bias",
     "model.cross_attention.to_q_proj.weight",
+    "model.cross_attention.transformer_decoder.layers.0.linear1.bias",
+    "model.cross_attention.transformer_decoder.layers.0.linear1.weight",
+    "model.cross_attention.transformer_decoder.layers.0.linear2.bias",
+    "model.cross_attention.transformer_decoder.layers.0.linear2.weight",
+    "model.cross_attention.transformer_decoder.layers.0.multihead_attn.in_proj_bias",
     "model.cross_attention.transformer_decoder.layers.0.self_attn.in_proj_weight",
     "model.cross_attention.transformer_decoder.layers.0.multihead_attn.in_proj_weight",
+    "model.cross_attention.transformer_decoder.layers.0.multihead_attn.out_proj.bias",
+    "model.cross_attention.transformer_decoder.layers.0.multihead_attn.out_proj.weight",
+    "model.cross_attention.transformer_decoder.layers.0.norm1.bias",
+    "model.cross_attention.transformer_decoder.layers.0.norm1.weight",
+    "model.cross_attention.transformer_decoder.layers.0.norm2.bias",
+    "model.cross_attention.transformer_decoder.layers.0.norm2.weight",
+    "model.cross_attention.transformer_decoder.layers.0.norm3.bias",
     "model.cross_attention.transformer_decoder.layers.0.norm3.weight",
+    "model.cross_attention.transformer_decoder.layers.0.self_attn.in_proj_bias",
+    "model.cross_attention.transformer_decoder.layers.0.self_attn.out_proj.bias",
+    "model.cross_attention.transformer_decoder.layers.0.self_attn.out_proj.weight",
 }
 
 
@@ -50,7 +66,7 @@ def has_released_vq_attention_weights(model_path: str) -> bool:
 
     keys = _local_checkpoint_keys(model_path)
     attention_keys = {key for key in keys if key.startswith("model.cross_attention.")}
-    return len(attention_keys) == 20 and _RELEASED_ATTENTION_KEYS <= attention_keys
+    return attention_keys == _RELEASED_ATTENTION_KEYS
 
 
 def has_embedded_vision_weights(model_path: str) -> bool:

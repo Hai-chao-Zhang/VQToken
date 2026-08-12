@@ -137,29 +137,29 @@ def test_kmeans_can_preserve_checkpoint_era_cluster_ids(monkeypatch):
     assert centers.shape == (2, 4)
 
 
-def test_vq_attention_preserves_longer_assignment_sequence():
+def test_vq_attention_rejects_more_frames_than_codebook_entries():
     torch.manual_seed(2)
     module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
     query = torch.randn(7, 5)
     codebook = torch.randn(3, 8)
 
-    output = module.cross_attention_weighted_clusters(query, codebook)
-    assert output.shape == (7, 8)
-    assert torch.isfinite(output).all()
+    with pytest.raises(ValueError, match="frames <= selected K"):
+        module.cross_attention_weighted_clusters(query, codebook)
 
-    batched = module.cross_attention_weighted_clusters(query.unsqueeze(0).expand(2, -1, -1), codebook)
-    assert batched.shape == (2, 7, 8)
+    with pytest.raises(ValueError, match="frames <= selected K"):
+        module.cross_attention_weighted_clusters(
+            query.unsqueeze(0).expand(2, -1, -1), codebook
+        )
 
 
-def test_vq_attention_repeats_short_codebook_to_match_assignment_map():
+def test_vq_attention_rejects_token_budget_smaller_than_frame_count():
     module = VQAttn(query_dim=5, context_dim=8, num_heads=2)
 
-    output = module.cross_attention_weighted_clusters(
-        torch.randn(7, 5),
-        torch.randn(3, 8),
-    )
-
-    assert output.shape == (7, 8)
+    with pytest.raises(ValueError, match="increase K"):
+        module.cross_attention_weighted_clusters(
+            torch.randn(7, 5),
+            torch.randn(3, 8),
+        )
 
 
 def test_vq_attention_repeats_short_assignment_maps_to_the_codebook_budget():

@@ -167,9 +167,9 @@ bash test_vqtoken_0.5b.sh
 
 The smoke script selects `attention` automatically for the released VQToken
 checkpoint. Use `--mode centroids` only when intentionally running the
-codebook-only ablation. Attention mode also preserves the checkpoint-era
-cluster-ID convention; centroid-only inference retains deterministic
-canonicalized IDs.
+codebook-only ablation. Attention mode preserves the released checkpoint's raw
+cluster-ID convention and requires sampled frames to be no greater than K;
+centroid-only inference retains deterministic canonicalized IDs.
 
 The script pins known model revisions, downloads only inference artifacts (not
 optimizer states), and reuses the SigLIP weights embedded in compatible
