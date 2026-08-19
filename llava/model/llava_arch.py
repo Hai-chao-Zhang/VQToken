@@ -229,6 +229,7 @@ class LlavaMetaForCausalLM(ABC):
             cluster_indices, clusters = kmeans_clustering_tokens_torch(
                 image_feature,
                 K=getattr(self.config, "vqtoken_max_clusters", 32),
+                canonicalize=False,
             )
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12)
             # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=24)
@@ -240,6 +241,7 @@ class LlavaMetaForCausalLM(ABC):
                 max_K=getattr(self.config, "vqtoken_max_clusters", 32),
                 min_K=getattr(self.config, "vqtoken_min_clusters", 12),
                 method=adaptive,
+                canonicalize=False,
             )
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=12) # , self.config.num_iters) #image
         # cluster_indices, clusters = kmeans_clustering_tokens_torch(image_feature, K=int(0.3* image_feature.shape[0]*image_feature.shape[1])) # , self.config.num_iters) #image

@@ -22,6 +22,7 @@ from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
 from lmms_eval.models.model_utils.load_video import read_video_pyav
+from VQToken import has_released_vq_attention_weights
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -84,7 +85,7 @@ class Llava_OneVision_VQToken(lmms):
         mm_spatial_pool_mode: Optional[str] = "bilinear",
         token_strategy: Optional[str] = "single",  # could be "single" or "multiple", "multiple" denotes adding multiple <image> tokens for each frame
         video_decode_backend: str = "decord",
-        vqtoken_mode: str = "centroids",
+        vqtoken_mode: str = "auto",
         vqtoken_selection_method: str = "fixed",
         vqtoken_min_clusters: int = 12,
         vqtoken_max_clusters: int = 32,
@@ -130,8 +131,17 @@ class Llava_OneVision_VQToken(lmms):
         self.mm_spatial_pool_mode = mm_spatial_pool_mode
         self.video_decode_backend = video_decode_backend
 
-        if vqtoken_mode != "centroids":
-            raise ValueError("the audited llava_onevision_vqtoken path currently supports vqtoken_mode=centroids")
+        if vqtoken_mode == "auto":
+            vqtoken_mode = (
+                "attention"
+                if pretrained.rstrip("/") == "haichaozhang/VQ-Token-llava-ov-0.5b"
+                or has_released_vq_attention_weights(pretrained)
+                else "centroids"
+            )
+        if vqtoken_mode not in {"centroids", "attention"}:
+            raise ValueError("vqtoken_mode must be auto, centroids, or attention")
+        if vqtoken_mode == "attention" and pretrained.rstrip("/") != "haichaozhang/VQ-Token-llava-ov-0.5b" and not has_released_vq_attention_weights(pretrained):
+            raise ValueError("vqtoken_mode=attention requires the released VQ-Attention weights")
         if vqtoken_selection_method not in {"fixed", "elbow", "silhouette"}:
             raise ValueError("vqtoken_selection_method must be fixed, elbow, or silhouette")
         if vqtoken_min_clusters < 1 or vqtoken_max_clusters < vqtoken_min_clusters:

@@ -59,6 +59,7 @@ def adaptive_kmeans_clustering_tokens_torch(
     max_K: int = 20,
     method: str = "elbow",
     min_K: int = 12,
+    canonicalize: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Cluster tokens and select the codebook size automatically.
 
@@ -68,6 +69,8 @@ def adaptive_kmeans_clustering_tokens_torch(
         method: ``"elbow"`` or ``"silhouette"``.
         min_K: Minimum candidate codebook size. If there are fewer samples,
             the sample count is used instead.
+        canonicalize: Reorder cluster IDs by first occurrence. Disable this
+            for checkpoints trained against raw K-means assignment IDs.
 
     Returns:
         A ``[num_frames, tokens_per_frame]`` assignment tensor and a
@@ -89,6 +92,7 @@ def adaptive_kmeans_clustering_tokens_torch(
         max_clusters=effective_max,
         min_clusters=effective_min,
         method=method,
+        canonicalize=canonicalize,
     )
     # Assignments are nondifferentiable; detaching prevents an unnecessary
     # graph through every K-means iteration. Means below still carry gradients.
@@ -102,8 +106,13 @@ def kmeans_clustering_tokens_torch(
     tokens: torch.Tensor,
     K: int,
     max_iteration: int = 50,
+    canonicalize: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Cluster tokens into a fixed-size normalized codebook."""
+    """Cluster tokens into a fixed-size normalized codebook.
+
+    ``canonicalize=False`` preserves raw K-means IDs for compatibility with
+    released attention checkpoints that consume assignment IDs directly.
+    """
 
     frames, tokens_per_frame, _, normalized = _flatten_normalized_tokens(tokens)
     num_samples = normalized.shape[0]
@@ -112,7 +121,11 @@ def kmeans_clustering_tokens_torch(
     if K > num_samples:
         raise ValueError(f"K ({K}) cannot exceed the number of tokens ({num_samples})")
 
-    kmeans = KMeansTorch(num_clusters=K, max_iteration=max_iteration)
+    kmeans = KMeansTorch(
+        num_clusters=K,
+        max_iteration=max_iteration,
+        canonicalize=canonicalize,
+    )
     labels, centroids = kmeans.fit(normalized.detach())
     means = _cluster_means(normalized, labels, K, tokens.dtype, centroids)
     return labels.reshape(frames, tokens_per_frame), means
